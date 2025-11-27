@@ -1,1 +1,0 @@
-"""Guardian API routes."""
