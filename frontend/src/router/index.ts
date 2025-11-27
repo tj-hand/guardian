@@ -1,80 +1,83 @@
 /**
- * Guardian Vue Router Configuration
+ * Guardian Routes - Layer 1 Authentication Routes
+ *
+ * These routes are exported to be registered in the Evoke router.
+ * The navigation guards use the auth store for protection.
  */
 
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
 
-const routes: RouteRecordRaw[] = [
-  {
-    path: '/',
-    name: 'Home',
-    component: () => import('@/views/Home.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Home',
-    },
-  },
+/**
+ * Guardian authentication routes
+ * To be merged into the main Evoke router
+ */
+export const guardianRoutes: RouteRecordRaw[] = [
   {
     path: '/login',
-    name: 'Login',
-    component: () => import('@/views/Login.vue'),
+    name: 'guardian-login',
+    component: () => import('../views/Login.vue'),
     meta: {
       requiresAuth: false,
       title: 'Login',
+      layer: 'guardian',
     },
   },
   {
     path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('@/views/Dashboard.vue'),
+    name: 'guardian-dashboard',
+    component: () => import('../views/Dashboard.vue'),
     meta: {
       requiresAuth: true,
       title: 'Dashboard',
+      layer: 'guardian',
     },
   },
 ]
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-})
+/**
+ * Navigation guard for Guardian routes
+ * Should be registered in Evoke's router.beforeEach
+ */
+export async function guardianNavigationGuard(
+  to: RouteLocationNormalized,
+  _from: RouteLocationNormalized,
+  next: NavigationGuardNext
+) {
+  // Only handle guardian routes
+  if (to.meta.layer !== 'guardian') {
+    next()
+    return
+  }
 
-// Navigation guard
-router.beforeEach(async (to, _from, next) => {
+  const { useAuthStore } = await import('../stores/auth')
   const authStore = useAuthStore()
+
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
 
-  // Update page title
-  const appName = import.meta.env.VITE_APP_NAME || 'Guardian'
-  document.title = to.meta.title ? `${to.meta.title} - ${appName}` : appName
+  if (requiresAuth && !authStore.isAuthenticated) {
+    // Try to restore session
+    authStore.initAuth()
 
-  if (requiresAuth) {
-    // Route requires authentication
     if (!authStore.isAuthenticated) {
-      authStore.initAuth()
-
-      if (!authStore.isAuthenticated) {
-        next({ name: 'Login', query: { redirect: to.fullPath } })
-        return
-      }
-
-      // Verify token is still valid
-      const isValid = await authStore.checkAuth()
-      if (!isValid) {
-        next({ name: 'Login', query: { redirect: to.fullPath } })
-        return
-      }
-    }
-    next()
-  } else {
-    // Route doesn't require auth
-    if (to.name === 'Login' && authStore.isAuthenticated) {
-      next({ name: 'Dashboard' })
+      next({ name: 'guardian-login', query: { redirect: to.fullPath } })
       return
     }
-    next()
-  }
-})
 
-export default router
+    // Verify token is still valid
+    const isValid = await authStore.checkAuth()
+    if (!isValid) {
+      next({ name: 'guardian-login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
+
+  // Redirect authenticated users away from login
+  if (to.name === 'guardian-login' && authStore.isAuthenticated) {
+    next({ name: 'guardian-dashboard' })
+    return
+  }
+
+  next()
+}
+
+export default guardianRoutes

@@ -1,4 +1,5 @@
-# Guardian Frontend Dockerfile
+# Guardian Frontend - Layer 1 Module
+# Builds a Vue 3 library module to be mounted into Evoke (Layer 0)
 
 # =============================================================================
 # Development Stage
@@ -16,14 +17,14 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Expose port
+# Expose port for standalone dev
 EXPOSE 5173
 
 # Development command
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # =============================================================================
-# Build Stage
+# Build Stage - Library Build
 # =============================================================================
 FROM node:20-alpine as build
 
@@ -38,21 +39,31 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build application
-RUN npm run build
+# Build as library module
+RUN npm run build:lib
 
 # =============================================================================
-# Production Stage
+# Layer Output Stage
+# Produces the built module for integration with Evoke
 # =============================================================================
-FROM nginx:alpine as production
+FROM alpine:3.19 as layer
 
-# Copy built files
-COPY --from=build /app/dist /usr/share/nginx/html
+WORKDIR /guardian
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy built library and type definitions
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package.json ./
 
-# Expose port
-EXPOSE 80
+# Copy source for reference/debugging in development
+COPY --from=build /app/src ./src
 
-CMD ["nginx", "-g", "daemon off;"]
+# Layer metadata
+LABEL layer.name="guardian"
+LABEL layer.level="1"
+LABEL layer.type="frontend"
+LABEL layer.description="Passwordless authentication module"
+
+# This image is meant to be used as a source for COPY --from in Evoke's Dockerfile
+# Example usage in Evoke Dockerfile:
+#   FROM guardian-frontend:latest as guardian
+#   COPY --from=guardian /guardian /app/layers/guardian

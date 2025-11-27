@@ -75,3 +75,11 @@ async def close_database() -> None:
     """Close database connections."""
     await engine.dispose()
     logger.info("Database connections closed")
+
+
+def get_engine():
+    """
+    Returns the SQLAlchemy async engine.
+    Use this in Manifast if you need direct engine access.
+    """
+    return engine
