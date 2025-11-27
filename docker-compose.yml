@@ -1,0 +1,142 @@
+# Guardian Docker Compose - Development Configuration
+# Passwordless authentication with 6-digit email tokens
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # PostgreSQL Database
+  # =============================================================================
+  database:
+    image: postgres:16-alpine
+    container_name: guardian_database
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-guardian}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guardian123}
+      POSTGRES_DB: ${POSTGRES_DB:-guardian_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - guardian_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-guardian}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =============================================================================
+  # Guardian Backend (FastAPI)
+  # =============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    image: guardian-backend:dev
+    container_name: guardian_backend
+    restart: unless-stopped
+    environment:
+      - APP_NAME=Guardian
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - SECRET_KEY=${SECRET_KEY:-guardian-dev-secret-key-change-in-production}
+      - API_PREFIX=/api
+      - POSTGRES_USER=${POSTGRES_USER:-guardian}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-guardian123}
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-guardian_db}
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:8080,http://localhost:3000
+      - ENABLE_EMAIL_WHITELIST=false
+      - BOLT_GATEWAY_ENABLED=false
+    env_file:
+      - ./backend/.env.example
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - guardian_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # =============================================================================
+  # Guardian Frontend (Vue 3)
+  # =============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    image: guardian-frontend:dev
+    container_name: guardian_frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=
+      - VITE_APP_NAME=Guardian
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - guardian_network
+    command: npm run dev -- --host 0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # =============================================================================
+  # Bolt API Gateway (Optional - for production-like setup)
+  # =============================================================================
+  gateway:
+    image: ${GATEWAY_IMAGE:-ghcr.io/tj-hand/bolt}:${GATEWAY_VERSION:-latest}
+    container_name: guardian_gateway
+    restart: unless-stopped
+    environment:
+      - BACKEND_1_HOST=backend
+      - BACKEND_1_PORT=8000
+      - FRONTEND_URL=http://frontend:5173
+      - CORS_PASSTHROUGH=true
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gateway/custom-routes:/etc/nginx/conf.d/custom-routes:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - guardian_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - gateway
+
+networks:
+  guardian_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

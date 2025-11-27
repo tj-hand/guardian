@@ -1,0 +1,111 @@
+# Guardian Docker Compose - Production Configuration
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # PostgreSQL Database
+  # =============================================================================
+  database:
+    image: postgres:16-alpine
+    container_name: guardian_database
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - guardian_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =============================================================================
+  # Guardian Backend (FastAPI)
+  # =============================================================================
+  backend:
+    image: ${BACKEND_IMAGE:-guardian-backend}:${BACKEND_VERSION:-latest}
+    container_name: guardian_backend
+    restart: always
+    environment:
+      - APP_NAME=Guardian
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=WARNING
+      - SECRET_KEY=${SECRET_KEY}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
+      - MAILGUN_FROM_EMAIL=${MAILGUN_FROM_EMAIL}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - ENABLE_EMAIL_WHITELIST=${ENABLE_EMAIL_WHITELIST:-false}
+      - BOLT_GATEWAY_ENABLED=true
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - guardian_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # Guardian Frontend (Static Build)
+  # =============================================================================
+  frontend:
+    image: ${FRONTEND_IMAGE:-guardian-frontend}:${FRONTEND_VERSION:-latest}
+    container_name: guardian_frontend
+    restart: always
+    networks:
+      - guardian_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # Bolt API Gateway
+  # =============================================================================
+  gateway:
+    image: ${GATEWAY_IMAGE:-ghcr.io/tj-hand/bolt}:${GATEWAY_VERSION:-latest}
+    container_name: guardian_gateway
+    restart: always
+    environment:
+      - BACKEND_1_HOST=backend
+      - BACKEND_1_PORT=8000
+      - CORS_PASSTHROUGH=true
+      - BOLT_GATEWAY_SECRET=${BOLT_GATEWAY_SECRET}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./gateway/custom-routes:/etc/nginx/conf.d/custom-routes:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - guardian_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  guardian_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
