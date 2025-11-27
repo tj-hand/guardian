@@ -16,7 +16,23 @@ mainline_test/
 └── .env                        # Environment configuration
 ```
 
-## Step 1: Build Guardian Layer Images
+## Step 1: Get Guardian Layer Images
+
+### Option A: Use Pre-built Images from GitHub Container Registry
+
+Guardian images are automatically built and published to GHCR on releases:
+
+```bash
+# Pull latest images
+docker pull ghcr.io/tj-hand/guardian-frontend:latest
+docker pull ghcr.io/tj-hand/guardian-backend:latest
+
+# Or specific version
+docker pull ghcr.io/tj-hand/guardian-frontend:1.0.0
+docker pull ghcr.io/tj-hand/guardian-backend:1.0.0
+```
+
+### Option B: Build Locally
 
 In the Guardian repository, build the layer images:
 
@@ -28,14 +44,6 @@ docker build -t guardian-frontend:latest --target layer ./frontend
 docker build -t guardian-backend:latest --target layer ./backend
 ```
 
-Or use a registry:
-```bash
-docker build -t registry.example.com/guardian-frontend:1.0.0 --target layer ./frontend
-docker build -t registry.example.com/guardian-backend:1.0.0 --target layer ./backend
-docker push registry.example.com/guardian-frontend:1.0.0
-docker push registry.example.com/guardian-backend:1.0.0
-```
-
 ## Step 2: Integrate Frontend (Evoke + Guardian)
 
 ### 2.1 Update Evoke Dockerfile
@@ -43,8 +51,8 @@ docker push registry.example.com/guardian-backend:1.0.0
 ```dockerfile
 # evoke/Dockerfile
 
-# Pull Guardian frontend layer
-FROM guardian-frontend:latest as guardian-layer
+# Pull Guardian frontend layer from GHCR
+FROM ghcr.io/tj-hand/guardian-frontend:latest as guardian-layer
 
 # Base Evoke build
 FROM node:20-alpine as build
@@ -149,8 +157,8 @@ Or if using a registry:
 ```dockerfile
 # manifast/Dockerfile
 
-# Pull Guardian backend layer
-FROM guardian-backend:latest as guardian-layer
+# Pull Guardian backend layer from GHCR
+FROM ghcr.io/tj-hand/guardian-backend:latest as guardian-layer
 
 # Base Manifast build
 FROM python:3.11-slim as production
