@@ -64,6 +64,7 @@ jobs:
           APP_ENV: testing
           MAILGUN_API_KEY: test-key
           MAILGUN_DOMAIN: test.mailgun.org
+          ENABLE_EMAIL_WHITELIST: "false"   # <-- Add this line
         run: pytest --cov=app --cov-report=xml
       - name: Upload coverage
         uses: codecov/codecov-action@v4
