@@ -288,12 +288,14 @@ class TestTokenLifecycle:
     @pytest.mark.asyncio
     async def test_multiple_tokens_for_same_user(self, sample_user):
         """Test creating multiple tokens for same user."""
-        # Act
+        # Act - add small delay to ensure different timestamps
+        # JWT is deterministic, so tokens created at the same instant are identical
         token1 = jwt_service.create_access_token(sample_user)
+        await asyncio.sleep(0.01)  # Ensure different iat timestamps
         token2 = jwt_service.create_access_token(sample_user)
 
-        # Assert - Both tokens should be valid but different
-        assert token1 != token2
+        # Assert - Both tokens should be valid but different (different iat)
+        assert token1 != token2, "Tokens should be different due to different timestamps"
 
         user_id1 = jwt_service.verify_token(token1)
         user_id2 = jwt_service.verify_token(token2)

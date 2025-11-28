@@ -7,7 +7,7 @@ This module provides shared fixtures for testing the FastAPI application.
 from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -102,8 +102,9 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        # Create client
-        async with AsyncClient(app=app, base_url="http://test") as ac:
+        # Create client using ASGITransport for httpx 0.28+ compatibility
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
     finally:
         # Always clear overrides, even if test fails

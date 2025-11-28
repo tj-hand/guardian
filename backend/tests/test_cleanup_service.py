@@ -349,6 +349,8 @@ class TestCleanupIntegration:
         await token_service.mark_token_as_used(db_session, validated_token)
 
         # Manually expire the token for testing
+        # Set created_at first to satisfy the check constraint (expires_at > created_at)
+        db_token.created_at = datetime.now(timezone.utc) - timedelta(minutes=20)
         db_token.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         await db_session.commit()
 
