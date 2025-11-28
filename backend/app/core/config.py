@@ -136,15 +136,26 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
+    # Optional DATABASE_URL override (used in CI)
+    database_url_override: str = Field(
+        default="",
+        description="Direct database URL override. If set, ignores individual postgres_* settings.",
+        alias="DATABASE_URL",
+    )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> str:
         """
-        Construct async PostgreSQL connection URL from individual components.
+        Get async PostgreSQL connection URL.
+
+        Uses DATABASE_URL if provided, otherwise constructs from individual components.
 
         Returns:
             str: Async PostgreSQL connection URL for SQLAlchemy with asyncpg driver
         """
+        if self.database_url_override:
+            return self.database_url_override
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

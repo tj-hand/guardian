@@ -14,12 +14,19 @@ from app.main import app
 from app.core.database import Base, get_db
 from app.core.config import get_settings
 
-# Test database URL (use separate database for tests)
+# Test database URL
+# In CI/testing environments with DATABASE_URL set, use it directly (CI provides a test database)
+# In development, append _test suffix to avoid affecting dev data
 settings = get_settings()
-TEST_DATABASE_URL = settings.database_url.replace(
-    settings.postgres_db,
-    f"{settings.postgres_db}_test"
-)
+if settings.database_url_override:
+    # CI provides DATABASE_URL pointing to a dedicated test database
+    TEST_DATABASE_URL = settings.database_url
+else:
+    # Development: use separate _test database
+    TEST_DATABASE_URL = settings.database_url.replace(
+        settings.postgres_db,
+        f"{settings.postgres_db}_test"
+    )
 
 # Create test engine
 test_engine = create_async_engine(
