@@ -17,7 +17,7 @@ test.describe('Rate Limiting', () => {
     let requestCount = 0
 
     // Intercept API calls to track requests
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       requestCount++
 
       if (requestCount <= 3) {
@@ -69,7 +69,7 @@ test.describe('Rate Limiting', () => {
 
   test('should show appropriate error message for rate limit', async ({ page }) => {
     // Intercept API call to return rate limit error immediately
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       await route.fulfill({
         status: 429,
         contentType: 'application/json',
@@ -95,7 +95,7 @@ test.describe('Rate Limiting', () => {
     let rateLimitExpired = false
 
     // Intercept API calls
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       requestCount++
 
       if (!rateLimitExpired && requestCount > 3) {
@@ -153,7 +153,7 @@ test.describe('Rate Limiting', () => {
     const requestCounts = new Map<string, number>()
 
     // Intercept API calls and track per email
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       const requestBody = route.request().postDataJSON()
       const email = requestBody.email
 

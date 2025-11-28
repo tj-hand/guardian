@@ -46,14 +46,14 @@ test.describe('Protected Routes', () => {
 
   test('should allow access to protected routes when authenticated', async ({ page }) => {
     // Mock authentication
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       await route.fulfill({
         status: 200,
         body: JSON.stringify({ message: 'Token sent', email: TEST_EMAIL })
       })
     })
 
-    await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
       await route.fulfill({
         status: 200,
         body: JSON.stringify({
@@ -66,7 +66,7 @@ test.describe('Protected Routes', () => {
     })
 
     // Mock authenticated endpoint
-    await page.route(`${API_BASE_URL}/api/v1/auth/me`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/me`, async (route) => {
       await route.fulfill({
         status: 200,
         body: JSON.stringify({
@@ -96,7 +96,7 @@ test.describe('Protected Routes', () => {
   test('should maintain session across page refresh', async ({ page, context }) => {
     // Set up authentication token in localStorage
     await context.addInitScript((token) => {
-      localStorage.setItem('token', token)
+      localStorage.setItem('access_token', token)
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         email: 'test@example.com',
@@ -105,7 +105,7 @@ test.describe('Protected Routes', () => {
     }, MOCK_JWT)
 
     // Mock authenticated endpoint
-    await page.route(`${API_BASE_URL}/api/v1/auth/me`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/me`, async (route) => {
       const headers = route.request().headers()
       if (headers['authorization'] === `Bearer ${MOCK_JWT}`) {
         await route.fulfill({
@@ -138,7 +138,7 @@ test.describe('Protected Routes', () => {
   test('should clear session on logout', async ({ page, context }) => {
     // Set up authentication token in localStorage
     await context.addInitScript((token) => {
-      localStorage.setItem('token', token)
+      localStorage.setItem('access_token', token)
       localStorage.setItem('user', JSON.stringify({
         id: 1,
         email: 'test@example.com',
@@ -147,7 +147,7 @@ test.describe('Protected Routes', () => {
     }, MOCK_JWT)
 
     // Mock authenticated endpoint
-    await page.route(`${API_BASE_URL}/api/v1/auth/me`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/me`, async (route) => {
       await route.fulfill({
         status: 200,
         body: JSON.stringify({
@@ -170,7 +170,7 @@ test.describe('Protected Routes', () => {
     await expect(page).toHaveURL(/\/login|\//, { timeout: 3000 })
 
     // Verify localStorage is cleared
-    const token = await page.evaluate(() => localStorage.getItem('token'))
+    const token = await page.evaluate(() => localStorage.getItem('access_token'))
     expect(token).toBeNull()
 
     // Try to access dashboard again (should redirect)
@@ -189,7 +189,7 @@ test.describe('Protected Routes', () => {
     })
 
     // Mock expired token response
-    await page.route(`${API_BASE_URL}/api/v1/auth/me`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/me`, async (route) => {
       await route.fulfill({
         status: 401,
         body: JSON.stringify({ detail: 'Token expired' })
