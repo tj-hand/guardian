@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 
 /**
  * E2E Tests for Protected Routes and Session Management
@@ -13,6 +13,27 @@ const TEST_EMAIL = 'test@example.com'
 const VALID_TOKEN = '123456'
 const API_BASE_URL = 'http://localhost:8000'
 const MOCK_JWT = 'mock-jwt-token-12345'
+
+/**
+ * Helper function to fill in the 6-digit token
+ * The UI uses 6 separate inputs with class 'token-digit'
+ */
+async function fillTokenInputs(page: Page, token: string) {
+  const digits = token.split('')
+  const tokenInputs = page.locator('.token-digit')
+
+  for (let i = 0; i < digits.length; i++) {
+    await tokenInputs.nth(i).fill(digits[i])
+  }
+}
+
+/**
+ * Helper function to wait for token input screen to appear
+ */
+async function waitForTokenInputScreen(page: Page) {
+  await expect(page).toHaveURL(/email=/, { timeout: 10000 })
+  await expect(page.locator('.token-digit').first()).toBeVisible({ timeout: 5000 })
+}
 
 test.describe('Protected Routes', () => {
   test('should redirect unauthenticated user to login', async ({ page }) => {
@@ -60,7 +81,10 @@ test.describe('Protected Routes', () => {
     await page.goto('/login')
     await page.fill('input[type="email"]', TEST_EMAIL)
     await page.click('button[type="submit"]')
-    await page.fill('input[type="text"][maxlength="6"]', VALID_TOKEN)
+
+    // Wait for token input screen and fill token
+    await waitForTokenInputScreen(page)
+    await fillTokenInputs(page, VALID_TOKEN)
 
     // Wait for redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 })
@@ -138,8 +162,8 @@ test.describe('Protected Routes', () => {
     await page.goto('/dashboard')
     await expect(page).toHaveURL(/\/dashboard/)
 
-    // Click logout button (adjust selector based on actual implementation)
-    const logoutButton = page.locator('button:has-text("Logout"), button:has-text("Sign out"), a:has-text("Logout")')
+    // Click logout button (uses .logout-button class)
+    const logoutButton = page.locator('.logout-button')
     await logoutButton.click()
 
     // Should be redirected to login page

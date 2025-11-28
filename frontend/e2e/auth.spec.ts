@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 
 /**
  * E2E Tests for Email Token Authentication Flow
@@ -15,6 +15,31 @@ const TEST_EMAIL = 'test@example.com'
 const VALID_TOKEN = '123456'
 const INVALID_TOKEN = '999999'
 const API_BASE_URL = 'http://localhost:8000'
+
+/**
+ * Helper function to fill in the 6-digit token
+ * The UI uses 6 separate inputs with class 'token-digit'
+ */
+async function fillTokenInputs(page: Page, token: string) {
+  const digits = token.split('')
+  const tokenInputs = page.locator('.token-digit')
+
+  for (let i = 0; i < digits.length; i++) {
+    await tokenInputs.nth(i).fill(digits[i])
+  }
+}
+
+/**
+ * Helper function to wait for token input screen to appear
+ * This happens after email submission when URL changes to include email query param
+ */
+async function waitForTokenInputScreen(page: Page) {
+  // Wait for URL to contain email query param (redirect after email submission)
+  await expect(page).toHaveURL(/email=/, { timeout: 10000 })
+
+  // Wait for the first token digit input to be visible
+  await expect(page.locator('.token-digit').first()).toBeVisible({ timeout: 5000 })
+}
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -61,12 +86,11 @@ test.describe('Authentication Flow', () => {
     // Click submit button
     await page.click('button[type="submit"]')
 
-    // Step 2: Wait for token input to appear
-    await expect(page.locator('input[type="text"][maxlength="6"]')).toBeVisible({ timeout: 5000 })
+    // Step 2: Wait for token input screen to appear (after redirect)
+    await waitForTokenInputScreen(page)
 
     // Step 3: Enter 6-digit token (should auto-submit)
-    const tokenInput = page.locator('input[type="text"][maxlength="6"]')
-    await tokenInput.fill(VALID_TOKEN)
+    await fillTokenInputs(page, VALID_TOKEN)
 
     // Step 4: Verify redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 })
@@ -103,14 +127,14 @@ test.describe('Authentication Flow', () => {
     await page.fill('input[type="email"]', TEST_EMAIL)
     await page.click('button[type="submit"]')
 
-    // Wait for token input
-    await expect(page.locator('input[type="text"][maxlength="6"]')).toBeVisible()
+    // Wait for token input screen
+    await waitForTokenInputScreen(page)
 
     // Enter invalid token
-    await page.fill('input[type="text"][maxlength="6"]', INVALID_TOKEN)
+    await fillTokenInputs(page, INVALID_TOKEN)
 
-    // Verify error message appears
-    await expect(page.locator('text=/invalid.*token/i')).toBeVisible({ timeout: 3000 })
+    // Verify error message appears (look for error in .error-message container)
+    await expect(page.locator('.error-message')).toContainText(/invalid/i, { timeout: 5000 })
   })
 
   test('should show error for expired token', async ({ page }) => {
@@ -141,14 +165,14 @@ test.describe('Authentication Flow', () => {
     await page.fill('input[type="email"]', TEST_EMAIL)
     await page.click('button[type="submit"]')
 
-    // Wait for token input
-    await expect(page.locator('input[type="text"][maxlength="6"]')).toBeVisible()
+    // Wait for token input screen
+    await waitForTokenInputScreen(page)
 
     // Enter token
-    await page.fill('input[type="text"][maxlength="6"]', VALID_TOKEN)
+    await fillTokenInputs(page, VALID_TOKEN)
 
-    // Verify error message appears
-    await expect(page.locator('text=/expired/i')).toBeVisible({ timeout: 3000 })
+    // Verify error message appears (look for error in .error-message container)
+    await expect(page.locator('.error-message')).toContainText(/expired/i, { timeout: 5000 })
   })
 
   test('should auto-submit token when 6 digits are entered', async ({ page }) => {
@@ -189,12 +213,11 @@ test.describe('Authentication Flow', () => {
     await page.fill('input[type="email"]', TEST_EMAIL)
     await page.click('button[type="submit"]')
 
-    // Wait for token input
-    const tokenInput = page.locator('input[type="text"][maxlength="6"]')
-    await expect(tokenInput).toBeVisible()
+    // Wait for token input screen
+    await waitForTokenInputScreen(page)
 
-    // Enter 6 digits one by one
-    await tokenInput.fill(VALID_TOKEN)
+    // Enter 6 digits one by one - this should trigger auto-submit
+    await fillTokenInputs(page, VALID_TOKEN)
 
     // Wait for auto-submit (validate endpoint should be called)
     await page.waitForTimeout(1000)
