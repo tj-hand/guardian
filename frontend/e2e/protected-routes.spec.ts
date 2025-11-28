@@ -178,6 +178,9 @@ test.describe('Protected Routes', () => {
     // Should be redirected to login page
     await expect(page).toHaveURL(/\/login|\//, { timeout: 3000 })
 
+    // Wait for login page to fully load (ensures logout async operations have completed)
+    await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 3000 })
+
     // Verify localStorage is cleared
     const token = await page.evaluate(() => localStorage.getItem('access_token'))
     expect(token).toBeNull()

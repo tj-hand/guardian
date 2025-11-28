@@ -118,7 +118,7 @@ test.describe('Authentication Flow', () => {
         status: 401,
         contentType: 'application/json',
         body: JSON.stringify({
-          detail: 'Invalid or expired token'
+          detail: 'Invalid token'
         })
       })
     })
