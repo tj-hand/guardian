@@ -1,103 +1,330 @@
-import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
+/**
+ * Guardian API Composable
+ * Uses Evoke JS Client (Layer 0) for API communication
+ *
+ * Architecture flow:
+ * Guardian Frontend → Evoke → Bolt → Manifast → Guardian Backend
+ */
+
 import { ref } from 'vue'
 
-// API response type
-export interface ApiResponse<T = any> {
+// =============================================================================
+// EVOKE CLIENT TYPE DECLARATIONS
+// =============================================================================
+
+/**
+ * Evoke API Response type
+ */
+interface EvokeApiResponse<T> {
+  data: T
+  status: number
+  headers: Record<string, string>
+  duration?: number
+}
+
+/**
+ * Evoke API Error type
+ */
+interface EvokeApiError {
+  message: string
+  code: string
+  status?: number
+  response?: unknown
+  isNetworkError(): boolean
+  isTimeout(): boolean
+  toJSON(): Record<string, unknown>
+}
+
+/**
+ * Evoke Client Configuration
+ */
+interface EvokeConfig {
+  baseURL: string
+  timeout?: number
+  withCredentials?: boolean
+  headers?: Record<string, string>
+  tokenStorage?: {
+    type: 'localStorage' | 'sessionStorage' | 'memory'
+    accessTokenKey?: string
+    refreshTokenKey?: string
+  }
+  retry?: {
+    maxRetries?: number
+    baseDelay?: number
+    maxDelay?: number
+  } | false
+  onAuthError?: (error: EvokeApiError) => void
+  onNetworkError?: (error: EvokeApiError) => void
+  debug?: boolean
+}
+
+/**
+ * Evoke Client Interface
+ */
+interface EvokeClient {
+  get<T>(url: string, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  post<T, D = unknown>(url: string, data?: D, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  put<T, D = unknown>(url: string, data?: D, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  patch<T, D = unknown>(url: string, data?: D, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  delete<T>(url: string, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  publicGet<T>(url: string, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  publicPost<T, D = unknown>(url: string, data?: D, options?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>>
+  setToken(token: string): void
+  clearToken(): void
+  getToken(): string | null
+  hasToken(): boolean
+}
+
+/**
+ * Global Evoke object (loaded via script tag)
+ */
+interface EvokeGlobal {
+  createClient(config: EvokeConfig): EvokeClient
+  EvokeClient: new (config: EvokeConfig) => EvokeClient
+}
+
+// Declare global Evoke
+declare global {
+  interface Window {
+    Evoke?: EvokeGlobal
+  }
+}
+
+// =============================================================================
+// API TYPES (Exported)
+// =============================================================================
+
+/**
+ * API response type (for backward compatibility)
+ */
+export interface ApiResponse<T = unknown> {
   data: T
   message?: string
   success: boolean
 }
 
-// API error type
+/**
+ * API error type
+ */
 export interface ApiError {
   message: string
   code?: string
   status?: number
 }
 
+// =============================================================================
+// EVOKE CLIENT INITIALIZATION
+// =============================================================================
+
 /**
- * Create axios instance with base configuration
+ * Create Evoke client instance
+ * Uses Evoke JS client loaded via script tag for the layered architecture
  */
-const createApiClient = (): AxiosInstance => {
-  const client = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-    timeout: 30000,
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  })
-
-  // Request interceptor - Add authentication token if available
-  client.interceptors.request.use(
-    (config) => {
-      // Get token from localStorage
-      const token = localStorage.getItem('access_token')
-
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
-
-      return config
-    },
-    (error) => {
-      return Promise.reject(error)
-    }
-  )
-
-  // Response interceptor - Handle common errors
-  client.interceptors.response.use(
-    (response) => {
-      return response
-    },
-    async (error: AxiosError) => {
-      // Handle authentication errors
-      if (error.response?.status === 401) {
-        // Token expired or invalid
-        // Clear auth and redirect to login
+const createApiClient = (): EvokeClient => {
+  // Check if Evoke is available (loaded via script tag)
+  if (typeof window !== 'undefined' && window.Evoke) {
+    const client = window.Evoke.createClient({
+      // Evoke handles routing through the layered architecture
+      // Requests go: Guardian → Evoke → Bolt → Manifast → Guardian Backend
+      baseURL: import.meta.env.VITE_EVOKE_URL || '/evoke',
+      timeout: 30000,
+      withCredentials: true,
+      tokenStorage: {
+        type: 'localStorage',
+        accessTokenKey: 'access_token',
+        refreshTokenKey: 'refresh_token',
+      },
+      retry: {
+        maxRetries: 3,
+        baseDelay: 1000,
+        maxDelay: 10000,
+      },
+      onAuthError: () => {
+        // Clear local storage and redirect to login on 401
         localStorage.removeItem('access_token')
         localStorage.removeItem('user')
-
-        // Redirect to login (only if not already there)
         if (window.location.pathname !== '/login') {
           window.location.href = '/login'
         }
-      }
+      },
+      debug: import.meta.env.DEV,
+    })
 
-      // Handle server errors
-      if (error.response?.status && error.response.status >= 500) {
-        console.error('Server error:', error)
-      }
-
-      return Promise.reject(error)
+    // Load existing token if available
+    const existingToken = localStorage.getItem('access_token')
+    if (existingToken) {
+      client.setToken(existingToken)
     }
-  )
 
-  return client
+    return client
+  }
+
+  // Fallback: Create a minimal client that logs errors
+  // This handles the case where Evoke script hasn't loaded yet
+  console.warn('[Guardian] Evoke client not available. Ensure evoke.js is loaded.')
+
+  const fallbackClient: EvokeClient = {
+    async get<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    async post<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    async put<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    async patch<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    async delete<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    async publicGet<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    async publicPost<T>(): Promise<EvokeApiResponse<T>> {
+      throw new Error('Evoke client not initialized')
+    },
+    setToken() {},
+    clearToken() {},
+    getToken() { return null },
+    hasToken() { return false },
+  }
+
+  return fallbackClient
 }
 
 // Create singleton API client instance
-const apiClient = createApiClient()
+let _apiClient: EvokeClient | null = null
+
+/**
+ * Get or create the API client instance
+ * Lazy initialization to ensure Evoke script has loaded
+ */
+const getApiClient = (): EvokeClient => {
+  if (!_apiClient) {
+    _apiClient = createApiClient()
+  }
+  return _apiClient
+}
+
+// =============================================================================
+// API CLIENT WRAPPER (for backward compatibility)
+// =============================================================================
+
+/**
+ * API client wrapper that maintains backward compatibility
+ * with the previous axios-based implementation
+ */
+export const apiClient = {
+  /**
+   * GET request
+   */
+  async get<T = unknown>(url: string, config?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>> {
+    return getApiClient().get<T>(url, config)
+  },
+
+  /**
+   * POST request
+   */
+  async post<T = unknown>(url: string, data?: unknown, config?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>> {
+    return getApiClient().post<T>(url, data, config)
+  },
+
+  /**
+   * PUT request
+   */
+  async put<T = unknown>(url: string, data?: unknown, config?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>> {
+    return getApiClient().put<T>(url, data, config)
+  },
+
+  /**
+   * DELETE request
+   */
+  async delete<T = unknown>(url: string, config?: { params?: Record<string, unknown> }): Promise<EvokeApiResponse<T>> {
+    return getApiClient().delete<T>(url, config)
+  },
+
+  /**
+   * Set authentication token
+   */
+  setToken(token: string): void {
+    getApiClient().setToken(token)
+  },
+
+  /**
+   * Clear authentication token
+   */
+  clearToken(): void {
+    getApiClient().clearToken()
+  },
+
+  /**
+   * Check if client has a token
+   */
+  hasToken(): boolean {
+    return getApiClient().hasToken()
+  },
+}
+
+// =============================================================================
+// USE API COMPOSABLE
+// =============================================================================
 
 /**
  * API composable for making HTTP requests
  * Provides reactive loading and error state management
+ *
+ * @example
+ * ```typescript
+ * const { loading, error, get, post } = useApi()
+ *
+ * const users = await get<User[]>('/api/users')
+ * const newUser = await post<User>('/api/users', { name: 'John' })
+ * ```
  */
 export const useApi = () => {
   const loading = ref(false)
   const error = ref<ApiError | null>(null)
 
   /**
+   * Handle API errors
+   */
+  const handleError = (err: unknown): ApiError => {
+    // Handle Evoke API errors
+    if (err && typeof err === 'object' && 'code' in err) {
+      const evokeError = err as EvokeApiError
+      return {
+        message: evokeError.message || 'An unexpected error occurred',
+        code: evokeError.code,
+        status: evokeError.status,
+      }
+    }
+
+    // Handle standard errors
+    if (err instanceof Error) {
+      return {
+        message: err.message,
+      }
+    }
+
+    return {
+      message: 'An unexpected error occurred',
+    }
+  }
+
+  /**
    * Make GET request
    */
-  const get = async <T = any>(
+  const get = async <T = unknown>(
     url: string,
-    config?: AxiosRequestConfig
+    config?: { params?: Record<string, unknown> }
   ): Promise<T> => {
     loading.value = true
     error.value = null
 
     try {
-      const response: AxiosResponse<T> = await apiClient.get(url, config)
+      const response = await apiClient.get<T>(url, config)
       return response.data
     } catch (err) {
       error.value = handleError(err)
@@ -110,16 +337,16 @@ export const useApi = () => {
   /**
    * Make POST request
    */
-  const post = async <T = any>(
+  const post = async <T = unknown>(
     url: string,
-    data?: any,
-    config?: AxiosRequestConfig
+    data?: unknown,
+    config?: { params?: Record<string, unknown> }
   ): Promise<T> => {
     loading.value = true
     error.value = null
 
     try {
-      const response: AxiosResponse<T> = await apiClient.post(url, data, config)
+      const response = await apiClient.post<T>(url, data, config)
       return response.data
     } catch (err) {
       error.value = handleError(err)
@@ -132,16 +359,16 @@ export const useApi = () => {
   /**
    * Make PUT request
    */
-  const put = async <T = any>(
+  const put = async <T = unknown>(
     url: string,
-    data?: any,
-    config?: AxiosRequestConfig
+    data?: unknown,
+    config?: { params?: Record<string, unknown> }
   ): Promise<T> => {
     loading.value = true
     error.value = null
 
     try {
-      const response: AxiosResponse<T> = await apiClient.put(url, data, config)
+      const response = await apiClient.put<T>(url, data, config)
       return response.data
     } catch (err) {
       error.value = handleError(err)
@@ -154,15 +381,15 @@ export const useApi = () => {
   /**
    * Make DELETE request
    */
-  const del = async <T = any>(
+  const del = async <T = unknown>(
     url: string,
-    config?: AxiosRequestConfig
+    config?: { params?: Record<string, unknown> }
   ): Promise<T> => {
     loading.value = true
     error.value = null
 
     try {
-      const response: AxiosResponse<T> = await apiClient.delete(url, config)
+      const response = await apiClient.delete<T>(url, config)
       return response.data
     } catch (err) {
       error.value = handleError(err)
@@ -172,37 +399,12 @@ export const useApi = () => {
     }
   }
 
-  /**
-   * Handle API errors
-   */
-  const handleError = (err: unknown): ApiError => {
-    if (axios.isAxiosError(err)) {
-      const axiosError = err as AxiosError<{ message?: string; detail?: string }>
-
-      return {
-        message: axiosError.response?.data?.message ||
-                 axiosError.response?.data?.detail ||
-                 axiosError.message ||
-                 'An unexpected error occurred',
-        code: axiosError.code,
-        status: axiosError.response?.status
-      }
-    }
-
-    return {
-      message: err instanceof Error ? err.message : 'An unexpected error occurred'
-    }
-  }
-
   return {
     loading,
     error,
     get,
     post,
     put,
-    del
+    del,
   }
 }
-
-// Export the API client for direct use if needed
-export { apiClient }

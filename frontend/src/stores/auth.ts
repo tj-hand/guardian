@@ -11,6 +11,17 @@ interface User {
   created_at?: string
 }
 
+// API Response types
+interface AuthResponse {
+  access_token: string
+  user: User
+}
+
+interface RequestTokenResponse {
+  email: string
+  message?: string
+}
+
 /**
  * Authentication store
  * Manages user authentication state and actions
@@ -66,7 +77,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
 
     try {
-      const response = await apiClient.post('/api/auth/refresh')
+      const response = await apiClient.post<AuthResponse>('/api/auth/refresh')
 
       // Update token and user
       accessToken.value = response.data.access_token
@@ -98,7 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       // Call /me endpoint to verify token
-      const response = await apiClient.get('/api/auth/me')
+      const response = await apiClient.get<User>('/api/auth/me')
       user.value = response.data
       isAuthenticated.value = true
       return true
@@ -119,17 +130,16 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await apiClient.post('/api/auth/request-token', { email })
+      const response = await apiClient.post<RequestTokenResponse>('/api/auth/request-token', { email })
 
       // Store masked email for display
       requestedEmail.value = response.data.email || email
 
       // Success - token sent to email
       // Note: Response doesn't contain the actual token for security
-      return response.data
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { detail?: string } } }
-      error.value = axiosError.response?.data?.detail || 'Failed to request token'
+      const apiError = err as { message?: string; status?: number }
+      error.value = apiError.message || 'Failed to request token'
       throw err
     } finally {
       loading.value = false
@@ -146,7 +156,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await apiClient.post('/api/auth/validate-token', {
+      const response = await apiClient.post<AuthResponse>('/api/auth/validate-token', {
         email,
         token
       })
@@ -161,11 +171,9 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('access_token', response.data.access_token)
         localStorage.setItem('user', JSON.stringify(response.data.user))
       }
-
-      return response.data
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { detail?: string } } }
-      error.value = axiosError.response?.data?.detail || 'Token validation failed'
+      const apiError = err as { message?: string; status?: number }
+      error.value = apiError.message || 'Token validation failed'
       throw err
     } finally {
       loading.value = false
