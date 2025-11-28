@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output
+dist/
+build/
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# E2E tests (not needed for production build)
+e2e/
+
+# Misc
+*.tgz
+.eslintcache
