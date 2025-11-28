@@ -7,8 +7,10 @@ This module provides shared fixtures for testing the FastAPI application.
 import asyncio
 from typing import AsyncGenerator, Generator
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.main import app
 from app.core.database import Base, get_db
@@ -28,11 +30,14 @@ else:
         f"{settings.postgres_db}_test"
     )
 
-# Create test engine
+# Create test engine with NullPool to avoid connection state issues
+# NullPool creates a new connection for each use and closes it immediately after
+# This prevents "another operation is in progress" errors in asyncpg
 test_engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,
     future=True,
+    poolclass=NullPool,
 )
 
 # Create test session factory
@@ -45,20 +50,23 @@ TestSessionLocal = async_sessionmaker(
 )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop() -> Generator:
     """
     Create event loop for async tests.
 
+    Using function scope to ensure each test gets a fresh event loop,
+    preventing asyncpg connection state issues across tests.
+
     Yields:
-        asyncio.AbstractEventLoop: Event loop for test session
+        asyncio.AbstractEventLoop: Event loop for test function
     """
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function", loop_scope="function")
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Create database session for each test.
@@ -74,15 +82,22 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
     # Create session
     async with TestSessionLocal() as session:
-        yield session
-        await session.rollback()
+        try:
+            yield session
+        finally:
+            # Proper cleanup to avoid "another operation is in progress" errors
+            await session.rollback()
+            await session.close()
 
     # Drop tables
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+    # Dispose engine to ensure all connections are closed
+    await test_engine.dispose()
 
-@pytest.fixture(scope="function")
+
+@pytest_asyncio.fixture(scope="function", loop_scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     Create test client with database session override.
@@ -123,7 +138,7 @@ def async_client(client):
     return client
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def sample_user(db_session: AsyncSession):
     """
     Create a sample user for testing.
