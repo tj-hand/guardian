@@ -6,13 +6,18 @@ sent via email. Tokens are hashed for security and expire after 15 minutes.
 """
 
 import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Token(Base):
@@ -35,7 +40,7 @@ class Token(Base):
     __tablename__ = "tokens"
 
     # Primary key - UUID v4
-    id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
@@ -44,7 +49,7 @@ class Token(Base):
     )
 
     # Foreign key to users table with CASCADE delete
-    user_id = Column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -53,7 +58,7 @@ class Token(Base):
     )
 
     # SHA-256 hash of the 6-digit token (64 characters)
-    token_hash = Column(
+    token_hash: Mapped[str] = mapped_column(
         String(64),
         nullable=False,
         index=True,  # Critical index for fast token validation lookups
@@ -61,7 +66,7 @@ class Token(Base):
     )
 
     # Expiration timestamp - tokens are typically valid for 15 minutes
-    expires_at = Column(
+    expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         index=True,  # Index for cleanup queries (finding expired tokens)
@@ -69,14 +74,14 @@ class Token(Base):
     )
 
     # Usage timestamp - NULL means token hasn't been used yet
-    used_at = Column(
+    used_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         comment="Timestamp when token was used (NULL if unused)",
     )
 
     # Creation timestamp
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
@@ -84,7 +89,7 @@ class Token(Base):
     )
 
     # Relationship to user (many tokens belong to one user)
-    user = relationship("User", back_populates="tokens")
+    user: Mapped["User"] = relationship("User", back_populates="tokens")
 
     # Table constraints and indexes
     __table_args__ = (
