@@ -6,13 +6,18 @@ Users authenticate via 6-digit email tokens.
 """
 
 import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING, List
 
-from sqlalchemy import Boolean, Column, DateTime, Index, String
+from sqlalchemy import Boolean, DateTime, Index, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.token import Token
 
 
 class User(Base):
@@ -31,7 +36,7 @@ class User(Base):
     __tablename__ = "users"
 
     # Primary key - UUID v4 for global uniqueness
-    id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
@@ -40,7 +45,7 @@ class User(Base):
     )
 
     # Email address - unique constraint for authentication
-    email = Column(
+    email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
@@ -49,19 +54,19 @@ class User(Base):
     )
 
     # Account status flag
-    is_active = Column(
+    is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, comment="Whether the user account is active"
     )
 
     # Timestamp fields with automatic updates
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
         comment="User creation timestamp (UTC)",
     )
 
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -70,7 +75,7 @@ class User(Base):
     )
 
     # Relationship to tokens (one user can have many tokens)
-    tokens = relationship(
+    tokens: Mapped[List["Token"]] = relationship(
         "Token",
         back_populates="user",
         cascade="all, delete-orphan",  # Delete tokens when user is deleted

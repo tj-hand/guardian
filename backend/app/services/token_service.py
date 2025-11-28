@@ -8,9 +8,10 @@ hashing, storage, and validation for email authentication.
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional, cast
 
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -183,7 +184,10 @@ async def cleanup_expired_tokens(db: AsyncSession) -> int:
 
     await db.commit()
 
-    return result.rowcount
+    # Cast to CursorResult to access rowcount (async SQLAlchemy returns Result[Any])
+    cursor_result = cast(CursorResult[Any], result)
+    rowcount = cursor_result.rowcount
+    return rowcount if rowcount and rowcount > 0 else 0
 
 
 async def get_or_create_user_by_email(db: AsyncSession, email: str) -> User:
