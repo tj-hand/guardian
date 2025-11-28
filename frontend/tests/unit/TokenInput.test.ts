@@ -122,14 +122,16 @@ describe('TokenInput.vue', () => {
 
     const firstInput = wrapper.findAll('input.token-digit')[0]
 
-    // Create paste event
-    const pasteEvent = new ClipboardEvent('paste', {
-      clipboardData: new DataTransfer()
-    })
-    pasteEvent.clipboardData?.setData('text/plain', '123456')
+    // Create a mock paste event with clipboardData
+    const pasteEvent = {
+      clipboardData: {
+        getData: () => '123456'
+      },
+      preventDefault: vi.fn()
+    }
 
-    // Trigger paste
-    await firstInput.element.dispatchEvent(pasteEvent)
+    // Trigger paste event through the wrapper
+    await firstInput.trigger('paste', pasteEvent)
     await wrapper.vm.$nextTick()
 
     // All fields should be filled

@@ -23,8 +23,8 @@ describe('EmailInput Component', () => {
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/', name: 'Home', component: { template: '<div>Home</div>' } },
-        { path: '/login', name: 'Login', component: { template: '<div>Login</div>' } }
+        { path: '/', name: 'home', component: { template: '<div>Home</div>' } },
+        { path: '/login', name: 'login', component: { template: '<div>Login</div>' } }
       ]
     })
   })
@@ -385,7 +385,7 @@ describe('EmailInput Component', () => {
       vi.advanceTimersByTime(1500)
 
       expect(pushSpy).toHaveBeenCalledWith({
-        name: 'Login',
+        name: 'login',
         query: { email: 'test@example.com' }
       })
 

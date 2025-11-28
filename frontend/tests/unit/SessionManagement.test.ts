@@ -204,7 +204,7 @@ describe('Session Management', () => {
       expect(result).toBe(true)
       expect(authStore.user).toEqual(mockUser)
       expect(authStore.isAuthenticated).toBe(true)
-      expect(apiClient.get).toHaveBeenCalledWith('/api/v1/auth/me')
+      expect(apiClient.get).toHaveBeenCalledWith('/api/auth/me')
     })
 
     it('should logout and return false if token is invalid', async () => {
