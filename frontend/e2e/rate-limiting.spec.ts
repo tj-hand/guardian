@@ -60,10 +60,8 @@ test.describe('Rate Limiting', () => {
     await page.fill('input[type="email"]', TEST_EMAIL)
     await page.click('button[type="submit"]')
 
-    // Verify rate limit error message appears
-    await expect(
-      page.locator('text=/too many.*request/i, text=/rate limit/i, text=/try again later/i')
-    ).toBeVisible({ timeout: 3000 })
+    // Verify rate limit error message appears in error container
+    await expect(page.locator('.error-message')).toContainText(/too many|rate limit|try again/i, { timeout: 3000 })
 
     // Verify request count
     expect(requestCount).toBe(4)
@@ -87,9 +85,9 @@ test.describe('Rate Limiting', () => {
     await page.fill('input[type="email"]', TEST_EMAIL)
     await page.click('button[type="submit"]')
 
-    // Verify error message
-    await expect(page.locator('text=/rate limit/i')).toBeVisible()
-    await expect(page.locator('text=/15 minutes/i')).toBeVisible()
+    // Verify error message in error container
+    await expect(page.locator('.error-message')).toContainText(/rate limit/i)
+    await expect(page.locator('.error-message')).toContainText(/15 minutes/i)
   })
 
   test('should allow requests after rate limit window expires', async ({ page }) => {
@@ -122,16 +120,20 @@ test.describe('Rate Limiting', () => {
 
     await page.goto('/login')
 
-    // Make 4 requests (4th should fail)
-    for (let i = 0; i < 4; i++) {
+    // Make 3 successful requests first
+    for (let i = 0; i < 3; i++) {
       await page.fill('input[type="email"]', TEST_EMAIL)
       await page.click('button[type="submit"]')
       await page.waitForTimeout(500)
       await page.goto('/login')
     }
 
-    // Verify rate limit message
-    await expect(page.locator('text=/rate limit/i')).toBeVisible()
+    // 4th request should be rate limited - don't navigate away
+    await page.fill('input[type="email"]', TEST_EMAIL)
+    await page.click('button[type="submit"]')
+
+    // Verify rate limit message in error container
+    await expect(page.locator('.error-message')).toContainText(/rate limit/i)
 
     // Simulate rate limit window expiring
     rateLimitExpired = true
@@ -142,7 +144,7 @@ test.describe('Rate Limiting', () => {
     await page.click('button[type="submit"]')
 
     // Should NOT show rate limit error
-    await expect(page.locator('text=/rate limit/i')).not.toBeVisible({ timeout: 2000 })
+    await expect(page.locator('.error-message')).not.toBeVisible({ timeout: 2000 })
   })
 
   test('should rate limit per email address', async ({ page }) => {
@@ -184,16 +186,15 @@ test.describe('Rate Limiting', () => {
     // 4th request for email1 should fail
     await page.fill('input[type="email"]', email1)
     await page.click('button[type="submit"]')
-    await expect(page.locator('text=/rate limit/i')).toBeVisible()
+    await expect(page.locator('.error-message')).toContainText(/rate limit/i)
 
     // But email2 should still work (different email)
     await page.goto('/login')
     await page.fill('input[type="email"]', email2)
     await page.click('button[type="submit"]')
 
-    // Should NOT show rate limit error for email2
+    // Should NOT show rate limit error for email2 (should see success message instead)
     await page.waitForTimeout(1000)
-    const rateLimitText = await page.locator('text=/rate limit/i').count()
-    expect(rateLimitText).toBe(0)
+    await expect(page.locator('.error-message')).not.toBeVisible()
   })
 })
