@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     app_env: str = Field(
         default="development",
-        description="Application environment: development, staging, production",
+        description="Application environment: development, staging, production, testing",
     )
 
     secret_key: str = Field(
@@ -176,7 +176,7 @@ class Settings(BaseSettings):
         Raises:
             ValueError: If environment is not valid
         """
-        allowed = ["development", "staging", "production"]
+        allowed = ["development", "staging", "production", "testing"]
         if v.lower() not in allowed:
             raise ValueError(f"app_env must be one of {allowed}")
         return v.lower()
@@ -225,6 +225,11 @@ class Settings(BaseSettings):
     def is_staging(self) -> bool:
         """Check if running in staging environment."""
         return self.app_env == "staging"
+
+    @property
+    def is_testing(self) -> bool:
+        """Check if running in testing environment."""
+        return self.app_env == "testing"
 
 
 @lru_cache
