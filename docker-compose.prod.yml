@@ -6,7 +6,7 @@ services:
   # Instead, use managed database services (Azure Database for PostgreSQL, AWS RDS)
   # Keeping this here for local production testing only
   database:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: guardian_database_prod
     restart: unless-stopped
     environment:

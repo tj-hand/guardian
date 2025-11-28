@@ -8,7 +8,7 @@
 # ========================================
 # Stage 1: Development
 # ========================================
-FROM node:20-alpine AS development
+FROM node:22-alpine AS development
 
 # Set working directory
 WORKDIR /app
@@ -35,7 +35,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 # ========================================
 # Stage 2: Build
 # ========================================
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 # Set working directory
 WORKDIR /app
@@ -57,7 +57,7 @@ RUN npm run build
 # ========================================
 # This stage exports the built Guardian module for Evoke integration
 # Layer 0 containers (Evoke) can copy the dist folder from this stage
-FROM node:20-alpine AS layer
+FROM node:22-alpine AS layer
 
 # Set working directory
 WORKDIR /app
