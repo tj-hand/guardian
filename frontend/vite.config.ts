@@ -19,12 +19,13 @@ export default defineConfig({
     watch: {
       usePolling: true // Needed for Docker on some systems
     },
-    // Proxy API requests to backend (optional - can be handled by gateway)
+    // Proxy requests through Evoke (Layer 0 API Service)
+    // Layered architecture: Guardian → Evoke → Bolt → Manifast → Backend
     proxy: {
-      '/api': {
-        target: 'http://backend:8000',
+      '/evoke': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => path.replace(/^\/evoke/, '')
       }
     }
   },
@@ -41,8 +42,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'axios-vendor': ['axios']
+          'vue-vendor': ['vue', 'vue-router', 'pinia']
         }
       }
     }
