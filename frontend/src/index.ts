@@ -155,7 +155,8 @@ export async function installGuardian(
 
   // Initialize theme if requested (default: true)
   if (options?.initTheme !== false) {
-    const { initializeTheme } = await import('./composables/useTheme')
+    const { useTheme } = await import('./composables/useTheme')
+    const { initializeTheme } = useTheme()
     initializeTheme()
   }
 
