@@ -95,11 +95,9 @@ class Token(Base):
     __table_args__ = (
         # Check constraint: expiration must be after creation
         CheckConstraint("expires_at > created_at", name="check_expires_at_after_created_at"),
-        # Additional indexes for query optimization
-        Index("ix_tokens_token_hash", "token_hash"),
-        Index("ix_tokens_user_id", "user_id"),
-        Index("ix_tokens_expires_at", "expires_at"),
         # Composite index for common query pattern (unused + not expired)
+        # Note: Single-column indexes for token_hash, user_id, and expires_at are
+        # created automatically via index=True on their column definitions above
         Index("ix_tokens_validation", "token_hash", "expires_at", "used_at"),
         {"comment": "Authentication tokens table for 6-digit email codes"},
     )
