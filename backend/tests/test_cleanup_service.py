@@ -29,10 +29,13 @@ class TestCleanupExpiredTokens:
         # Create expired tokens
         for i in range(5):
             token_hash = token_service.hash_token(f"12345{i}")
+            expires_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+            created_at = expires_at - timedelta(minutes=15)  # Created before expiry
             db_token = Token(
                 user_id=user.id,
                 token_hash=token_hash,
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=10)
+                expires_at=expires_at,
+                created_at=created_at
             )
             db_session.add(db_token)
 
@@ -104,10 +107,13 @@ class TestCleanupExpiredTokens:
 
         # Create expired token
         expired_token_hash = token_service.hash_token("999999")
+        expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         expired_token = Token(
             user_id=user.id,
             token_hash=expired_token_hash,
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+            expires_at=expires_at,
+            created_at=created_at
         )
         db_session.add(expired_token)
         await db_session.commit()
@@ -131,10 +137,13 @@ class TestCleanupExpiredTokens:
             # Create expired tokens for each user
             for j in range(2):
                 token_hash = token_service.hash_token(f"token{i}{j}")
+                expires_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+                created_at = expires_at - timedelta(minutes=15)  # Created before expiry
                 db_token = Token(
                     user_id=user.id,
                     token_hash=token_hash,
-                    expires_at=datetime.now(timezone.utc) - timedelta(minutes=5)
+                    expires_at=expires_at,
+                    created_at=created_at
                 )
                 db_session.add(db_token)
 
@@ -160,10 +169,13 @@ class TestCleanupExpiredTokens:
 
         # Create token that expires exactly now (or very recently)
         token_hash = token_service.hash_token("123456")
+        expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
             user_id=user.id,
             token_hash=token_hash,
-            expires_at=datetime.now(timezone.utc) - timedelta(seconds=1)
+            expires_at=expires_at,
+            created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -198,10 +210,13 @@ class TestCleanupExpiredTokens:
         await db_session.refresh(user)
 
         token_hash = token_service.hash_token("123456")
+        expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
             user_id=user.id,
             token_hash=token_hash,
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+            expires_at=expires_at,
+            created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -251,10 +266,13 @@ class TestCleanupExpiredTokens:
         num_expired = 7
         for i in range(num_expired):
             token_hash = token_service.hash_token(f"token{i}")
+            expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+            created_at = expires_at - timedelta(minutes=15)  # Created before expiry
             db_token = Token(
                 user_id=user.id,
                 token_hash=token_hash,
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+                expires_at=expires_at,
+                created_at=created_at
             )
             db_session.add(db_token)
 
@@ -276,10 +294,13 @@ class TestCleanupExpiredTokens:
         await db_session.refresh(user)
 
         token_hash = token_service.hash_token("123456")
+        expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
             user_id=user.id,
             token_hash=token_hash,
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+            expires_at=expires_at,
+            created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -352,12 +373,15 @@ class TestCleanupIntegration:
             token_hash = token_service.hash_token(f"token{i}")
             # Some expired, some valid
             expiry_offset = -10 if i < 3 else 10
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_offset)
+            # For expired tokens, set created_at before expires_at
+            # For valid tokens, created_at can be recent
+            created_at = expires_at - timedelta(minutes=15)
             db_token = Token(
                 user_id=user.id,
                 token_hash=token_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(
-                    minutes=expiry_offset
-                )
+                expires_at=expires_at,
+                created_at=created_at
             )
             db_session.add(db_token)
 
