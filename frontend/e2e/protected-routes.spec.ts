@@ -89,8 +89,8 @@ test.describe('Protected Routes', () => {
     // Wait for redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 })
 
-    // Verify access to dashboard (check for page content)
-    await expect(page.locator('h1, h2, [role="main"]')).toBeVisible()
+    // Verify access to dashboard (check for Dashboard heading)
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
   test('should maintain session across page refresh', async ({ page, context }) => {
@@ -132,20 +132,10 @@ test.describe('Protected Routes', () => {
 
     // Should still be on dashboard (session persisted)
     await expect(page).toHaveURL(/\/dashboard/)
-    await expect(page.locator('h1, h2, [role="main"]')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
-  test('should clear session on logout', async ({ page, context }) => {
-    // Set up authentication token in localStorage
-    await context.addInitScript((token) => {
-      localStorage.setItem('access_token', token)
-      localStorage.setItem('user', JSON.stringify({
-        id: 1,
-        email: 'test@example.com',
-        created_at: new Date().toISOString()
-      }))
-    }, MOCK_JWT)
-
+  test('should clear session on logout', async ({ page }) => {
     // Mock authenticated endpoint
     await page.route(`${API_BASE_URL}/api/auth/me`, async (route) => {
       await route.fulfill({
@@ -157,6 +147,25 @@ test.describe('Protected Routes', () => {
         })
       })
     })
+
+    // Mock logout endpoint
+    await page.route(`${API_BASE_URL}/api/auth/logout`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        body: JSON.stringify({ message: 'Logged out successfully' })
+      })
+    })
+
+    // Navigate to base URL first to set localStorage (avoids addInitScript re-running issue)
+    await page.goto('/')
+    await page.evaluate((token) => {
+      localStorage.setItem('access_token', token)
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        email: 'test@example.com',
+        created_at: new Date().toISOString()
+      }))
+    }, MOCK_JWT)
 
     // Navigate to dashboard
     await page.goto('/dashboard')

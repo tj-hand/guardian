@@ -95,8 +95,8 @@ test.describe('Authentication Flow', () => {
     // Step 4: Verify redirect to dashboard
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 })
 
-    // Step 5: Verify user is authenticated (check for page heading or content)
-    await expect(page.locator('h1, h2, [role="main"]')).toBeVisible()
+    // Step 5: Verify user is authenticated (check for Dashboard heading)
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
   test('should show error for invalid token', async ({ page }) => {
