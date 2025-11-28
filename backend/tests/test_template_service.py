@@ -4,19 +4,19 @@ Unit tests for template service.
 Tests email template rendering with Jinja2 and white-label customization.
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 from jinja2.exceptions import TemplateNotFound as Jinja2TemplateNotFound
 
+from app.core.config import get_settings
 from app.services.template_service import (
+    TemplateNotFoundError,
+    TemplateRenderError,
     TemplateService,
     get_template_service,
-    TemplateNotFoundError,
-    TemplateRenderError
 )
-from app.core.config import get_settings
-
 
 settings = get_settings()
 
@@ -58,9 +58,9 @@ class TestTemplateServiceInitialization:
 
         # Verify Jinja2 environment exists
         assert service.jinja_env is not None
-        assert hasattr(service.jinja_env, 'get_template')
+        assert hasattr(service.jinja_env, "get_template")
 
-    @patch('app.services.template_service.Environment')
+    @patch("app.services.template_service.Environment")
     def test_init_jinja_environment_failure(self, mock_env, tmp_path):
         """Test handling of Jinja2 environment initialization failure."""
         mock_env.side_effect = Exception("Jinja2 init error")
@@ -84,7 +84,7 @@ class TestBrandingContext:
             "support_email",
             "brand_primary_color",
             "expiry_minutes",
-            "token_length"
+            "token_length",
         ]
         for key in required_keys:
             assert key in context
@@ -105,7 +105,7 @@ class TestBrandingContext:
         context = service._get_branding_context()
 
         # Should use company_name if available, else app_name
-        if hasattr(settings, 'company_name'):
+        if hasattr(settings, "company_name"):
             assert context["company_name"] == settings.company_name
         else:
             assert context["company_name"] == settings.app_name
@@ -170,10 +170,7 @@ class TestRenderTemplate:
 
         # Render with override
         service = TemplateService(template_path=str(template_path))
-        result = service.render_template(
-            "override.txt",
-            {"app_name": "Custom App"}
-        )
+        result = service.render_template("override.txt", {"app_name": "Custom App"})
 
         assert result == "Name: Custom App"
 
@@ -219,24 +216,16 @@ class TestRenderTemplate:
         template_path = tmp_path / "templates"
         template_path.mkdir()
         template_file = template_path / "conditional.txt"
-        template_file.write_text(
-            "{% if show_message %}Hello{% else %}Goodbye{% endif %}"
-        )
+        template_file.write_text("{% if show_message %}Hello{% else %}Goodbye{% endif %}")
 
         service = TemplateService(template_path=str(template_path))
 
         # Test with True
-        result_true = service.render_template(
-            "conditional.txt",
-            {"show_message": True}
-        )
+        result_true = service.render_template("conditional.txt", {"show_message": True})
         assert result_true == "Hello"
 
         # Test with False
-        result_false = service.render_template(
-            "conditional.txt",
-            {"show_message": False}
-        )
+        result_false = service.render_template("conditional.txt", {"show_message": False})
         assert result_false == "Goodbye"
 
     def test_render_template_whitespace_control(self, tmp_path):
@@ -245,9 +234,7 @@ class TestRenderTemplate:
         template_path = tmp_path / "templates"
         template_path.mkdir()
         template_file = template_path / "whitespace.txt"
-        template_file.write_text(
-            "Line 1\n{% if true %}\nLine 2\n{% endif %}\nLine 3"
-        )
+        template_file.write_text("Line 1\n{% if true %}\nLine 2\n{% endif %}\nLine 3")
 
         service = TemplateService(template_path=str(template_path))
         result = service.render_template("whitespace.txt")
@@ -257,7 +244,7 @@ class TestRenderTemplate:
         assert "Line 2" in result
         assert "Line 3" in result
 
-    @patch('app.services.template_service.logger')
+    @patch("app.services.template_service.logger")
     def test_render_template_logs_debug(self, mock_logger, tmp_path):
         """Test that successful rendering logs debug message."""
         template_path = tmp_path / "templates"
@@ -271,12 +258,8 @@ class TestRenderTemplate:
         # Verify debug logging
         mock_logger.debug.assert_called_once()
 
-    @patch('app.services.template_service.logger')
-    def test_render_template_logs_error_on_not_found(
-        self,
-        mock_logger,
-        tmp_path
-    ):
+    @patch("app.services.template_service.logger")
+    def test_render_template_logs_error_on_not_found(self, mock_logger, tmp_path):
         """Test that template not found logs error."""
         template_path = tmp_path / "templates"
         template_path.mkdir()
@@ -296,10 +279,7 @@ class TestFallbackTemplate:
     def test_get_fallback_template_token_text(self):
         """Test getting fallback text template for token email."""
         service = TemplateService()
-        result = service.get_fallback_template(
-            "token_text",
-            {"token": "123456"}
-        )
+        result = service.get_fallback_template("token_text", {"token": "123456"})
 
         # Verify content
         assert "123456" in result
@@ -309,10 +289,7 @@ class TestFallbackTemplate:
     def test_get_fallback_template_token_html(self):
         """Test getting fallback HTML template for token email."""
         service = TemplateService()
-        result = service.get_fallback_template(
-            "token_html",
-            {"token": "654321"}
-        )
+        result = service.get_fallback_template("token_html", {"token": "654321"})
 
         # Verify HTML structure
         assert "<!DOCTYPE html>" in result
@@ -339,14 +316,11 @@ class TestFallbackTemplate:
     def test_get_fallback_template_with_custom_context(self):
         """Test fallback template uses custom context variables."""
         service = TemplateService()
-        result = service.get_fallback_template(
-            "token_text",
-            {"token": "999999"}
-        )
+        result = service.get_fallback_template("token_text", {"token": "999999"})
 
         assert "999999" in result
 
-    @patch('app.services.template_service.logger')
+    @patch("app.services.template_service.logger")
     def test_get_fallback_template_logs_warning(self, mock_logger):
         """Test that using fallback template logs warning."""
         service = TemplateService()
@@ -428,15 +402,10 @@ class TestRenderTokenEmail:
 
         # Should contain company or app name
         context = service._get_branding_context()
-        assert (context["company_name"] in result or
-                context["app_name"] in result)
+        assert context["company_name"] in result or context["app_name"] in result
 
-    @patch('app.services.template_service.logger')
-    def test_render_token_email_logs_warning_on_fallback(
-        self,
-        mock_logger,
-        tmp_path
-    ):
+    @patch("app.services.template_service.logger")
+    def test_render_token_email_logs_warning_on_fallback(self, mock_logger, tmp_path):
         """Test that using fallback logs warning."""
         # Create service with empty template directory
         template_path = tmp_path / "templates"
@@ -446,10 +415,7 @@ class TestRenderTokenEmail:
         service.render_token_email("123456", "text")
 
         # Should log warning about using fallback
-        assert any(
-            "fallback" in str(call).lower()
-            for call in mock_logger.warning.call_args_list
-        )
+        assert any("fallback" in str(call).lower() for call in mock_logger.warning.call_args_list)
 
 
 class TestGetTemplateService:
@@ -465,6 +431,7 @@ class TestGetTemplateService:
         """Test that get_template_service returns same instance."""
         # Reset singleton for test
         import app.services.template_service as ts_module
+
         ts_module._template_service_instance = None
 
         # Get service twice
@@ -478,6 +445,7 @@ class TestGetTemplateService:
         """Test that template service is only initialized once."""
         # Reset singleton
         import app.services.template_service as ts_module
+
         ts_module._template_service_instance = None
 
         # Get service multiple times
@@ -496,7 +464,8 @@ class TestTemplateServiceIntegration:
         template_path = tmp_path / "templates"
         template_path.mkdir()
         template_file = template_path / "token_email.text"
-        template_file.write_text("""Hello,
+        template_file.write_text(
+            """Hello,
 
 Your verification code for {{ app_name }} is:
 
@@ -505,7 +474,8 @@ Your verification code for {{ app_name }} is:
 This code will expire in {{ expiry_minutes }} minutes.
 
 Best regards,
-{{ company_name }}""")
+{{ company_name }}"""
+        )
 
         # Render template
         service = TemplateService(template_path=str(template_path))
@@ -522,7 +492,8 @@ Best regards,
         template_path = tmp_path / "templates"
         template_path.mkdir()
         template_file = template_path / "token_email.html"
-        template_file.write_text("""<!DOCTYPE html>
+        template_file.write_text(
+            """<!DOCTYPE html>
 <html>
 <head>
     <title>{{ app_name }}</title>
@@ -532,7 +503,8 @@ Best regards,
     <p>Your code: <strong>{{ token }}</strong></p>
     <p>Expires in {{ expiry_minutes }} minutes</p>
 </body>
-</html>""")
+</html>"""
+        )
 
         # Render template
         service = TemplateService(template_path=str(template_path))
@@ -550,16 +522,11 @@ Best regards,
         template_path = tmp_path / "templates"
         template_path.mkdir()
         template_file = template_path / "custom.txt"
-        template_file.write_text(
-            "{{ greeting }}, your token is {{ token }} for {{ app_name }}"
-        )
+        template_file.write_text("{{ greeting }}, your token is {{ token }} for {{ app_name }}")
 
         # Render with custom variable
         service = TemplateService(template_path=str(template_path))
-        result = service.render_template(
-            "custom.txt",
-            {"token": "111111", "greeting": "Welcome"}
-        )
+        result = service.render_template("custom.txt", {"token": "111111", "greeting": "Welcome"})
 
         # Should include both custom and branding variables
         assert "Welcome" in result

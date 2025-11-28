@@ -10,14 +10,14 @@ This module tests JWT token lifecycle:
 """
 
 import asyncio
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from jose import JWTError, jwt
 
-from app.services import jwt_service
-from app.models.user import User
 from app.core.config import get_settings
-
+from app.models.user import User
+from app.services import jwt_service
 
 settings = get_settings()
 
@@ -122,10 +122,7 @@ class TestDecodeAccessToken:
     async def test_decode_expired_token(self, sample_user):
         """Test that decoding expired token raises JWTError."""
         # Arrange - Create token that expires in -1 hour (already expired)
-        token = jwt_service.create_access_token(
-            sample_user,
-            timedelta(hours=-1)
-        )
+        token = jwt_service.create_access_token(sample_user, timedelta(hours=-1))
 
         # Act & Assert
         with pytest.raises(JWTError):
@@ -179,10 +176,7 @@ class TestVerifyToken:
     async def test_verify_expired_token(self, sample_user):
         """Test verifying expired token returns None."""
         # Arrange
-        token = jwt_service.create_access_token(
-            sample_user,
-            timedelta(hours=-1)
-        )
+        token = jwt_service.create_access_token(sample_user, timedelta(hours=-1))
 
         # Act
         user_id = jwt_service.verify_token(token)
@@ -204,7 +198,7 @@ class TestVerifyToken:
         # Arrange - Manually create token without 'sub' claim
         payload = {
             "email": sample_user.email,
-            "exp": datetime.now(timezone.utc) + timedelta(days=1)
+            "exp": datetime.now(timezone.utc) + timedelta(days=1),
         }
         token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
@@ -269,10 +263,7 @@ class TestTokenLifecycle:
     async def test_token_becomes_invalid_after_expiry(self, sample_user):
         """Test that token becomes invalid after expiration."""
         # Arrange - Create token that expires in 1 second
-        token = jwt_service.create_access_token(
-            sample_user,
-            timedelta(seconds=1)
-        )
+        token = jwt_service.create_access_token(sample_user, timedelta(seconds=1))
 
         # Act - Token should be valid immediately
         user_id = jwt_service.verify_token(token)
@@ -288,10 +279,10 @@ class TestTokenLifecycle:
     @pytest.mark.asyncio
     async def test_multiple_tokens_for_same_user(self, sample_user):
         """Test creating multiple tokens for same user."""
-        # Act - add small delay to ensure different timestamps
-        # JWT is deterministic, so tokens created at the same instant are identical
+        # Act - add delay to ensure different timestamps
+        # JWT iat (issued at) uses second precision, so we need >1 second delay
         token1 = jwt_service.create_access_token(sample_user)
-        await asyncio.sleep(0.01)  # Ensure different iat timestamps
+        await asyncio.sleep(1.1)  # Ensure different iat timestamps (second precision)
         token2 = jwt_service.create_access_token(sample_user)
 
         # Assert - Both tokens should be valid but different (different iat)

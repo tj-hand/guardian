@@ -4,14 +4,15 @@ Unit tests for cleanup service.
 Tests background cleanup functionality for expired tokens.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import cleanup_service, token_service
-from app.models.user import User
 from app.models.token import Token
+from app.models.user import User
+from app.services import cleanup_service, token_service
 
 
 class TestCleanupExpiredTokens:
@@ -32,19 +33,12 @@ class TestCleanupExpiredTokens:
             expires_at = datetime.now(timezone.utc) - timedelta(minutes=10)
             created_at = expires_at - timedelta(minutes=15)  # Created before expiry
             db_token = Token(
-                user_id=user.id,
-                token_hash=token_hash,
-                expires_at=expires_at,
-                created_at=created_at
+                user_id=user.id, token_hash=token_hash, expires_at=expires_at, created_at=created_at
             )
             db_session.add(db_token)
 
         # Create valid token
-        await token_service.create_token_for_user(
-            db_session,
-            str(user.id),
-            "999999"
-        )
+        await token_service.create_token_for_user(db_session, str(user.id), "999999")
 
         await db_session.commit()
 
@@ -56,9 +50,7 @@ class TestCleanupExpiredTokens:
 
         # Verify valid token still exists
         valid_token = await token_service.validate_token_for_user(
-            db_session,
-            str(user.id),
-            "999999"
+            db_session, str(user.id), "999999"
         )
         assert valid_token is not None
 
@@ -73,11 +65,7 @@ class TestCleanupExpiredTokens:
 
         # Create valid tokens
         for i in range(3):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Execute cleanup
         deleted_count = await cleanup_service.cleanup_expired_tokens(db_session)
@@ -86,10 +74,7 @@ class TestCleanupExpiredTokens:
         assert deleted_count == 0
 
     @pytest.mark.asyncio
-    async def test_cleanup_preserves_used_but_valid_tokens(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_cleanup_preserves_used_but_valid_tokens(self, db_session: AsyncSession):
         """Test cleanup preserves used tokens that haven't expired yet."""
         # Create test user
         user = User(email="test@example.com")
@@ -98,11 +83,7 @@ class TestCleanupExpiredTokens:
         await db_session.refresh(user)
 
         # Create used token that's not expired
-        token = await token_service.create_token_for_user(
-            db_session,
-            str(user.id),
-            "123456"
-        )
+        token = await token_service.create_token_for_user(db_session, str(user.id), "123456")
         await token_service.mark_token_as_used(db_session, token)
 
         # Create expired token
@@ -113,7 +94,7 @@ class TestCleanupExpiredTokens:
             user_id=user.id,
             token_hash=expired_token_hash,
             expires_at=expires_at,
-            created_at=created_at
+            created_at=created_at,
         )
         db_session.add(expired_token)
         await db_session.commit()
@@ -143,7 +124,7 @@ class TestCleanupExpiredTokens:
                     user_id=user.id,
                     token_hash=token_hash,
                     expires_at=expires_at,
-                    created_at=created_at
+                    created_at=created_at,
                 )
                 db_session.add(db_token)
 
@@ -156,10 +137,7 @@ class TestCleanupExpiredTokens:
         assert deleted_count == 6
 
     @pytest.mark.asyncio
-    async def test_cleanup_edge_case_just_expired(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_cleanup_edge_case_just_expired(self, db_session: AsyncSession):
         """Test cleanup handles tokens that just expired."""
         # Create test user
         user = User(email="test@example.com")
@@ -172,10 +150,7 @@ class TestCleanupExpiredTokens:
         expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
-            user_id=user.id,
-            token_hash=token_hash,
-            expires_at=expires_at,
-            created_at=created_at
+            user_id=user.id, token_hash=token_hash, expires_at=expires_at, created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -196,12 +171,8 @@ class TestCleanupExpiredTokens:
         assert deleted_count == 0
 
     @pytest.mark.asyncio
-    @patch('app.services.cleanup_service.logger')
-    async def test_cleanup_logs_success(
-        self,
-        mock_logger: MagicMock,
-        db_session: AsyncSession
-    ):
+    @patch("app.services.cleanup_service.logger")
+    async def test_cleanup_logs_success(self, mock_logger: MagicMock, db_session: AsyncSession):
         """Test that cleanup logs success message."""
         # Create test user with expired token
         user = User(email="test@example.com")
@@ -213,10 +184,7 @@ class TestCleanupExpiredTokens:
         expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
-            user_id=user.id,
-            token_hash=token_hash,
-            expires_at=expires_at,
-            created_at=created_at
+            user_id=user.id, token_hash=token_hash, expires_at=expires_at, created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -229,13 +197,10 @@ class TestCleanupExpiredTokens:
         mock_logger.info.assert_any_call("Starting expired token cleanup")
 
     @pytest.mark.asyncio
-    @patch('app.services.cleanup_service.logger')
-    @patch('app.services.token_service.cleanup_expired_tokens')
+    @patch("app.services.cleanup_service.logger")
+    @patch("app.services.token_service.cleanup_expired_tokens")
     async def test_cleanup_logs_error_on_exception(
-        self,
-        mock_cleanup: AsyncMock,
-        mock_logger: MagicMock,
-        db_session: AsyncSession
+        self, mock_cleanup: AsyncMock, mock_logger: MagicMock, db_session: AsyncSession
     ):
         """Test that cleanup logs error when exception occurs."""
         # Mock cleanup to raise exception
@@ -251,10 +216,7 @@ class TestCleanupExpiredTokens:
         assert "Error during token cleanup" in error_call[0][0]
 
     @pytest.mark.asyncio
-    async def test_cleanup_returns_correct_count(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_cleanup_returns_correct_count(self, db_session: AsyncSession):
         """Test that cleanup returns accurate count of deleted tokens."""
         # Create test user
         user = User(email="test@example.com")
@@ -269,10 +231,7 @@ class TestCleanupExpiredTokens:
             expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
             created_at = expires_at - timedelta(minutes=15)  # Created before expiry
             db_token = Token(
-                user_id=user.id,
-                token_hash=token_hash,
-                expires_at=expires_at,
-                created_at=created_at
+                user_id=user.id, token_hash=token_hash, expires_at=expires_at, created_at=created_at
             )
             db_session.add(db_token)
 
@@ -297,10 +256,7 @@ class TestCleanupExpiredTokens:
         expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
-            user_id=user.id,
-            token_hash=token_hash,
-            expires_at=expires_at,
-            created_at=created_at
+            user_id=user.id, token_hash=token_hash, expires_at=expires_at, created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -322,10 +278,7 @@ class TestCleanupIntegration:
     """Integration tests for cleanup service with real token operations."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_after_token_validation(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_cleanup_after_token_validation(self, db_session: AsyncSession):
         """Test cleanup works after normal token validation flow."""
         # Create user and generate token
         user = User(email="test@example.com")
@@ -334,17 +287,11 @@ class TestCleanupIntegration:
         await db_session.refresh(user)
 
         token = "123456"
-        db_token = await token_service.create_token_for_user(
-            db_session,
-            str(user.id),
-            token
-        )
+        db_token = await token_service.create_token_for_user(db_session, str(user.id), token)
 
         # Validate and mark as used
         validated_token = await token_service.validate_token_for_user(
-            db_session,
-            str(user.id),
-            token
+            db_session, str(user.id), token
         )
         await token_service.mark_token_as_used(db_session, validated_token)
 
@@ -359,10 +306,7 @@ class TestCleanupIntegration:
         assert deleted_count == 1
 
     @pytest.mark.asyncio
-    async def test_cleanup_with_rate_limit_tokens(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_cleanup_with_rate_limit_tokens(self, db_session: AsyncSession):
         """Test cleanup works with tokens created during rate limiting."""
         # Create user
         user = User(email="test@example.com")
@@ -380,10 +324,7 @@ class TestCleanupIntegration:
             # For valid tokens, created_at can be recent
             created_at = expires_at - timedelta(minutes=15)
             db_token = Token(
-                user_id=user.id,
-                token_hash=token_hash,
-                expires_at=expires_at,
-                created_at=created_at
+                user_id=user.id, token_hash=token_hash, expires_at=expires_at, created_at=created_at
             )
             db_session.add(db_token)
 

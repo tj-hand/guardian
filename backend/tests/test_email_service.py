@@ -4,8 +4,9 @@ Unit tests for email service.
 Tests email sending via Mailgun API with mocking.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 import requests
 
 from app.services import email_service
@@ -15,7 +16,7 @@ class TestEmailSending:
     """Tests for email sending functionality."""
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_send_token_email_success(self, mock_post):
         """Test successful email sending via Mailgun."""
         # Mock successful response
@@ -24,10 +25,7 @@ class TestEmailSending:
         mock_post.return_value = mock_response
 
         # Send email
-        result = await email_service.send_token_email(
-            "user@example.com",
-            "123456"
-        )
+        result = await email_service.send_token_email("user@example.com", "123456")
 
         # Always returns True for security
         assert result is True
@@ -36,7 +34,7 @@ class TestEmailSending:
         assert mock_post.called
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_send_token_email_api_error(self, mock_post):
         """Test email sending with Mailgun API error."""
         # Mock error response
@@ -46,66 +44,52 @@ class TestEmailSending:
         mock_post.return_value = mock_response
 
         # Send email
-        result = await email_service.send_token_email(
-            "user@example.com",
-            "123456"
-        )
+        result = await email_service.send_token_email("user@example.com", "123456")
 
         # Still returns True for security (don't reveal errors)
         assert result is True
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_send_token_email_timeout(self, mock_post):
         """Test email sending with timeout."""
         # Mock timeout
         mock_post.side_effect = requests.exceptions.Timeout()
 
         # Send email
-        result = await email_service.send_token_email(
-            "user@example.com",
-            "123456"
-        )
+        result = await email_service.send_token_email("user@example.com", "123456")
 
         # Still returns True for security
         assert result is True
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_send_token_email_network_error(self, mock_post):
         """Test email sending with network error."""
         # Mock network error
-        mock_post.side_effect = requests.exceptions.RequestException(
-            "Network error"
-        )
+        mock_post.side_effect = requests.exceptions.RequestException("Network error")
 
         # Send email
-        result = await email_service.send_token_email(
-            "user@example.com",
-            "123456"
-        )
+        result = await email_service.send_token_email("user@example.com", "123456")
 
         # Still returns True for security
         assert result is True
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_send_token_email_unexpected_error(self, mock_post):
         """Test email sending with unexpected error."""
         # Mock unexpected error
         mock_post.side_effect = Exception("Unexpected error")
 
         # Send email
-        result = await email_service.send_token_email(
-            "user@example.com",
-            "123456"
-        )
+        result = await email_service.send_token_email("user@example.com", "123456")
 
         # Still returns True for security
         assert result is True
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_send_token_email_format(self, mock_post):
         """Test that email is formatted correctly."""
         # Mock successful response
@@ -125,32 +109,25 @@ class TestEmailSending:
         assert "api.mailgun.net" in url
 
         # Check data contains required fields
-        data = call_args[1]['data']
-        assert 'from' in data
-        assert 'to' in data
-        assert data['to'] == "user@example.com"
-        assert 'subject' in data
-        assert 'text' in data
-        assert '123456' in data['text']
+        data = call_args[1]["data"]
+        assert "from" in data
+        assert "to" in data
+        assert data["to"] == "user@example.com"
+        assert "subject" in data
+        assert "text" in data
+        assert "123456" in data["text"]
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.settings')
-    @patch('app.services.email_service.requests.post')
-    async def test_send_token_email_missing_config(
-        self,
-        mock_post,
-        mock_settings
-    ):
+    @patch("app.services.email_service.settings")
+    @patch("app.services.email_service.requests.post")
+    async def test_send_token_email_missing_config(self, mock_post, mock_settings):
         """Test email sending with missing Mailgun configuration."""
         # Mock missing configuration
         mock_settings.mailgun_api_key = ""
         mock_settings.mailgun_domain = ""
 
         # Send email
-        result = await email_service.send_token_email(
-            "user@example.com",
-            "123456"
-        )
+        result = await email_service.send_token_email("user@example.com", "123456")
 
         # Still returns True for security
         assert result is True
@@ -193,7 +170,7 @@ class TestEmailTemplate:
     """Tests for email template functionality."""
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_email_contains_token(self, mock_post):
         """Test that email body contains the token."""
         mock_response = MagicMock()
@@ -205,13 +182,13 @@ class TestEmailTemplate:
 
         # Get email body from call
         call_args = mock_post.call_args
-        data = call_args[1]['data']
-        email_body = data['text']
+        data = call_args[1]["data"]
+        email_body = data["text"]
 
         assert token in email_body
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_email_contains_expiry_info(self, mock_post):
         """Test that email body contains expiry information."""
         mock_response = MagicMock()
@@ -222,15 +199,15 @@ class TestEmailTemplate:
 
         # Get email body from call
         call_args = mock_post.call_args
-        data = call_args[1]['data']
-        email_body = data['text']
+        data = call_args[1]["data"]
+        email_body = data["text"]
 
         # Should mention expiry (in minutes)
         assert "expire" in email_body.lower()
         assert "minute" in email_body.lower()
 
     @pytest.mark.asyncio
-    @patch('app.services.email_service.requests.post')
+    @patch("app.services.email_service.requests.post")
     async def test_email_contains_app_name(self, mock_post):
         """Test that email body contains application name."""
         mock_response = MagicMock()
@@ -241,10 +218,11 @@ class TestEmailTemplate:
 
         # Get email body from call
         call_args = mock_post.call_args
-        data = call_args[1]['data']
-        email_body = data['text']
+        data = call_args[1]["data"]
+        email_body = data["text"]
 
         from app.core.config import get_settings
+
         settings = get_settings()
 
         # Should contain app name
