@@ -209,10 +209,13 @@ class TestTokenValidation:
 
         # Create token with past expiry
         token_hash = token_service.hash_token("123456")
+        expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        created_at = expires_at - timedelta(minutes=15)  # Created before expiry
         db_token = Token(
             user_id=user.id,
             token_hash=token_hash,
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+            expires_at=expires_at,
+            created_at=created_at
         )
         db_session.add(db_token)
         await db_session.commit()
@@ -267,10 +270,13 @@ class TestTokenManagement:
         # Create expired tokens
         for i in range(3):
             token_hash = token_service.hash_token(f"12345{i}")
+            expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+            created_at = expires_at - timedelta(minutes=15)  # Created before expiry
             db_token = Token(
                 user_id=user.id,
                 token_hash=token_hash,
-                expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+                expires_at=expires_at,
+                created_at=created_at
             )
             db_session.add(db_token)
 
