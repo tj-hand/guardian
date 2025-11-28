@@ -91,22 +91,34 @@ class TestValidateTokenEndpoint:
         self, async_client: AsyncClient, db_session, sample_user
     ):
         """Test token validation with expired token."""
-        # Arrange - Create token that's already expired
+        import uuid
+
+        from sqlalchemy import text
+
+        # Arrange - Create token that's already expired using raw SQL
+        # This bypasses SQLAlchemy's server_default handling
         token = token_service.generate_6_digit_token()
         token_hash = token_service.hash_token(token)
-
-        from app.models.token import Token
 
         # Set created_at to 5 minutes ago so expires_at (1 minute ago) > created_at
         # This satisfies the check_expires_at_after_created_at constraint
         created_time = datetime.now(timezone.utc) - timedelta(minutes=5)
-        expired_token_obj = Token(
-            user_id=str(sample_user.id),
-            token_hash=token_hash,
-            created_at=created_time,
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+        expires_time = datetime.now(timezone.utc) - timedelta(minutes=1)
+        token_id = uuid.uuid4()
+
+        await db_session.execute(
+            text("""
+                INSERT INTO tokens (id, user_id, token_hash, created_at, expires_at, used_at)
+                VALUES (:id, :user_id, :token_hash, :created_at, :expires_at, NULL)
+            """),
+            {
+                "id": token_id,
+                "user_id": sample_user.id,
+                "token_hash": token_hash,
+                "created_at": created_time,
+                "expires_at": expires_time,
+            },
         )
-        db_session.add(expired_token_obj)
         await db_session.commit()
 
         # Act
@@ -271,7 +283,8 @@ class TestRefreshEndpoint:
         old_token = auth_headers["Authorization"].replace("Bearer ", "")
 
         # Wait to ensure different JWT timestamp (iat uses second precision)
-        await asyncio.sleep(1.1)
+        # Use 2 seconds to account for CI timing variations
+        await asyncio.sleep(2)
 
         # Act
         response = await async_client.post("/api/v1/auth/refresh", headers=auth_headers)
@@ -281,7 +294,7 @@ class TestRefreshEndpoint:
         new_token = response.json()["access_token"]
 
         # Tokens should be different (different iat timestamp)
-        assert new_token != old_token
+        assert new_token != old_token, "Tokens should differ due to different iat timestamps"
 
 
 class TestLogoutEndpoint:

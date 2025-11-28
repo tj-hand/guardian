@@ -129,25 +129,33 @@ async def validation_exception_handler(
     Returns:
         JSONResponse: Formatted error response
     """
+    import json
+
     # Convert errors to JSON-serializable format
     # Remove 'ctx' field which may contain non-serializable objects like ValueError
     serializable_errors = []
     for error in exc.errors():
         clean_error = {
             "loc": error.get("loc"),
-            "msg": error.get("msg"),
-            "type": error.get("type"),
+            "msg": str(error.get("msg", "")),  # Ensure msg is string
+            "type": str(error.get("type", "")),  # Ensure type is string
         }
         # Include input if it's serializable
         if "input" in error:
             try:
-                import json
-
                 json.dumps(error["input"])
                 clean_error["input"] = error["input"]
             except (TypeError, ValueError):
-                pass
+                # If input is not serializable, convert to string
+                clean_error["input"] = str(error["input"])
         serializable_errors.append(clean_error)
+
+    # Ensure the entire response is JSON-serializable
+    try:
+        json.dumps(serializable_errors)
+    except (TypeError, ValueError) as e:
+        logger.error(f"Failed to serialize validation errors: {e}")
+        serializable_errors = [{"msg": "Validation error", "type": "value_error"}]
 
     logger.warning(f"Validation error on {request.url.path}: {serializable_errors}")
 
