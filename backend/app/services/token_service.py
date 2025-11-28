@@ -5,17 +5,17 @@ This module provides cryptographically secure 6-digit token generation,
 hashing, storage, and validation for email authentication.
 """
 
-import secrets
 import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy import select, delete
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User
-from app.models.token import Token
 from app.core.config import get_settings
-
+from app.models.token import Token
+from app.models.user import User
 
 settings = get_settings()
 
@@ -58,14 +58,10 @@ def hash_token(token: str) -> str:
         >>> hash_token("123456")
         '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'
     """
-    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-async def create_token_for_user(
-    db: AsyncSession,
-    user_id: str,
-    token: str
-) -> Token:
+async def create_token_for_user(db: AsyncSession, user_id: str, token: str) -> Token:
     """
     Create and store a hashed token for a user.
 
@@ -89,16 +85,10 @@ async def create_token_for_user(
     token_hash = hash_token(token)
 
     # Calculate expiration time
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.token_expiry_minutes
-    )
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.token_expiry_minutes)
 
     # Create token object
-    db_token = Token(
-        user_id=user_id,
-        token_hash=token_hash,
-        expires_at=expires_at
-    )
+    db_token = Token(user_id=user_id, token_hash=token_hash, expires_at=expires_at)
 
     # Add to database
     db.add(db_token)
@@ -108,11 +98,7 @@ async def create_token_for_user(
     return db_token
 
 
-async def validate_token_for_user(
-    db: AsyncSession,
-    user_id: str,
-    token: str
-) -> Optional[Token]:
+async def validate_token_for_user(db: AsyncSession, user_id: str, token: str) -> Optional[Token]:
     """
     Validate a token for a specific user.
 
@@ -154,10 +140,7 @@ async def validate_token_for_user(
     return db_token
 
 
-async def mark_token_as_used(
-    db: AsyncSession,
-    token: Token
-) -> None:
+async def mark_token_as_used(db: AsyncSession, token: Token) -> None:
     """
     Mark a token as used to prevent reuse.
 
@@ -196,20 +179,14 @@ async def cleanup_expired_tokens(db: AsyncSession) -> int:
         >>> print(f"Removed {deleted_count} expired tokens")
     """
     # Delete all expired tokens
-    result = await db.execute(
-        delete(Token)
-        .where(Token.expires_at < datetime.now(timezone.utc))
-    )
+    result = await db.execute(delete(Token).where(Token.expires_at < datetime.now(timezone.utc)))
 
     await db.commit()
 
     return result.rowcount
 
 
-async def get_or_create_user_by_email(
-    db: AsyncSession,
-    email: str
-) -> User:
+async def get_or_create_user_by_email(db: AsyncSession, email: str) -> User:
     """
     Get existing user by email or create a new one.
 
@@ -229,9 +206,7 @@ async def get_or_create_user_by_email(
         user@example.com
     """
     # Try to find existing user
-    result = await db.execute(
-        select(User).where(User.email == email)
-    )
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     # Create new user if doesn't exist

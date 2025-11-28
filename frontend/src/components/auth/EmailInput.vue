@@ -68,7 +68,7 @@ const formatRetryTime = (seconds: number) => {
     <h2>Login</h2>
     <p class="subtitle">Enter your email to receive a verification code</p>
 
-    <form @submit.prevent="handleSubmit" class="email-form">
+    <form class="email-form" @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="email">Email Address</label>
         <input

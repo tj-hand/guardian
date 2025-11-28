@@ -8,23 +8,23 @@ This module provides API endpoints for:
 """
 
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_current_user
 from app.core.database import get_db
+from app.models.user import User
 from app.schemas.auth import (
+    LogoutResponse,
+    RateLimitError,
     TokenRequest,
     TokenRequestResponse,
-    RateLimitError,
     TokenValidation,
     TokenValidationResponse,
     UserResponse,
-    LogoutResponse,
 )
-from app.services import token_service, email_service, rate_limit_service, jwt_service
-from app.api.dependencies import get_current_user
-from app.models.user import User
-
+from app.services import email_service, jwt_service, rate_limit_service, token_service
 
 logger = logging.getLogger(__name__)
 
@@ -43,20 +43,14 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
     responses={
         200: {
             "description": "Token request accepted (email sent if user exists)",
-            "model": TokenRequestResponse
+            "model": TokenRequestResponse,
         },
-        429: {
-            "description": "Rate limit exceeded",
-            "model": RateLimitError
-        },
-        500: {
-            "description": "Server error"
-        }
-    }
+        429: {"description": "Rate limit exceeded", "model": RateLimitError},
+        500: {"description": "Server error"},
+    },
 )
 async def request_token(
-    request: TokenRequest,
-    db: AsyncSession = Depends(get_db)
+    request: TokenRequest, db: AsyncSession = Depends(get_db)
 ) -> TokenRequestResponse:
     """
     Request a 6-digit authentication token via email.
@@ -98,9 +92,7 @@ async def request_token(
     try:
         # Step 1: Check rate limit BEFORE any other operations
         # This prevents abuse and protects against enumeration attacks
-        rate_check = await rate_limit_service.check_rate_limit_by_email(
-            db, email
-        )
+        rate_check = await rate_limit_service.check_rate_limit_by_email(db, email)
         allowed, attempts_remaining, retry_after = rate_check
 
         if not allowed:
@@ -112,40 +104,32 @@ async def request_token(
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail={
-                    "detail": (
-                        f"Too many requests. Please try again in "
-                        f"{minutes} minutes."
-                    ),
+                    "detail": (f"Too many requests. Please try again in " f"{minutes} minutes."),
                     "retry_after": retry_after,
-                    "attempts_remaining": 0
-                }
+                    "attempts_remaining": 0,
+                },
             )
 
         # Step 2: Check email whitelist if enabled
         from app.core.config import get_settings
+
         settings = get_settings()
 
         if settings.enable_email_whitelist:
             # Whitelist enabled - check if user exists
             from sqlalchemy import select
-            result = await db.execute(
-                select(User).where(
-                    User.email == email.lower()
-                )
-            )
+
+            result = await db.execute(select(User).where(User.email == email.lower()))
             existing_user = result.scalar_one_or_none()
 
             if not existing_user:
-                logger.warning(
-                    f"Whitelist rejection: {_mask_email(email)} not in "
-                    f"users table"
-                )
+                logger.warning(f"Whitelist rejection: {_mask_email(email)} not in " f"users table")
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=(
                         "Email not authorized. Please contact your "
                         "administrator to request access."
-                    )
+                    ),
                 )
 
         # Step 3: Get or create user
@@ -158,11 +142,7 @@ async def request_token(
         logger.info(f"Generated token for user {user.id}")
 
         # Step 5: Store hashed token in database
-        await token_service.create_token_for_user(
-            db,
-            str(user.id),
-            token
-        )
+        await token_service.create_token_for_user(db, str(user.id), token)
         logger.info(f"Token stored for user {user.id}")
 
         # Step 6: Send email asynchronously (don't wait for completion)
@@ -178,7 +158,7 @@ async def request_token(
         return TokenRequestResponse(
             message="If the email exists, a 6-digit code has been sent",
             email=_mask_email(email),
-            expires_in_minutes=settings.token_expiry_minutes
+            expires_in_minutes=settings.token_expiry_minutes,
         )
 
     except HTTPException:
@@ -188,19 +168,19 @@ async def request_token(
     except Exception as e:
         # Log error but don't expose details to client
         logger.error(
-            f"Error processing token request for {_mask_email(email)}: {str(e)}",
-            exc_info=True
+            f"Error processing token request for {_mask_email(email)}: {str(e)}", exc_info=True
         )
 
         # Still return success for security (don't reveal errors)
         # In a real attack scenario, errors shouldn't reveal system state
         from app.core.config import get_settings
+
         settings = get_settings()
 
         return TokenRequestResponse(
             message="If the email exists, a 6-digit code has been sent",
             email=_mask_email(email),
-            expires_in_minutes=settings.token_expiry_minutes
+            expires_in_minutes=settings.token_expiry_minutes,
         )
 
 
@@ -214,18 +194,12 @@ async def request_token(
         "Token must be valid, not expired, and not already used."
     ),
     responses={
-        200: {
-            "description": "Token valid, JWT session created",
-            "model": TokenValidationResponse
-        },
-        401: {
-            "description": "Invalid or expired token"
-        }
-    }
+        200: {"description": "Token valid, JWT session created", "model": TokenValidationResponse},
+        401: {"description": "Invalid or expired token"},
+    },
 )
 async def validate_token(
-    request: TokenValidation,
-    db: AsyncSession = Depends(get_db)
+    request: TokenValidation, db: AsyncSession = Depends(get_db)
 ) -> TokenValidationResponse:
     """
     Validate 6-digit token and create JWT session.
@@ -263,6 +237,7 @@ async def validate_token(
         }
     """
     from sqlalchemy import select
+
     from app.core.config import get_settings
 
     logger.info(f"Token validation request for email: {_mask_email(request.email)}")
@@ -272,28 +247,18 @@ async def validate_token(
     user = result.scalar_one_or_none()
 
     if not user:
-        logger.warning(
-            f"Token validation failed: user not found for {_mask_email(request.email)}"
-        )
+        logger.warning(f"Token validation failed: user not found for {_mask_email(request.email)}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or token"
         )
 
     # Step 2: Validate token
-    token_obj = await token_service.validate_token_for_user(
-        db,
-        str(user.id),
-        request.token
-    )
+    token_obj = await token_service.validate_token_for_user(db, str(user.id), request.token)
 
     if not token_obj:
-        logger.warning(
-            f"Token validation failed: invalid token for user {user.id}"
-        )
+        logger.warning(f"Token validation failed: invalid token for user {user.id}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
 
     # Step 3: Mark token as used
@@ -313,11 +278,8 @@ async def validate_token(
         token_type="bearer",
         expires_in=expires_in_seconds,
         user=UserResponse(
-            id=str(user.id),
-            email=user.email,
-            created_at=user.created_at,
-            is_active=user.is_active
-        )
+            id=str(user.id), email=user.email, created_at=user.created_at, is_active=user.is_active
+        ),
     )
 
 
@@ -327,18 +289,11 @@ async def validate_token(
     summary="Get current user information",
     description="Get information about the currently authenticated user.",
     responses={
-        200: {
-            "description": "Current user information",
-            "model": UserResponse
-        },
-        401: {
-            "description": "Not authenticated"
-        }
-    }
+        200: {"description": "Current user information", "model": UserResponse},
+        401: {"description": "Not authenticated"},
+    },
 )
-async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
-) -> UserResponse:
+async def get_current_user_info(current_user: User = Depends(get_current_user)) -> UserResponse:
     """
     Get current authenticated user information.
 
@@ -366,7 +321,7 @@ async def get_current_user_info(
         id=str(current_user.id),
         email=current_user.email,
         created_at=current_user.created_at,
-        is_active=current_user.is_active
+        is_active=current_user.is_active,
     )
 
 
@@ -376,18 +331,11 @@ async def get_current_user_info(
     summary="Refresh JWT token",
     description="Refresh JWT token before expiry to extend session.",
     responses={
-        200: {
-            "description": "New JWT token created",
-            "model": TokenValidationResponse
-        },
-        401: {
-            "description": "Not authenticated"
-        }
-    }
+        200: {"description": "New JWT token created", "model": TokenValidationResponse},
+        401: {"description": "Not authenticated"},
+    },
 )
-async def refresh_token(
-    current_user: User = Depends(get_current_user)
-) -> TokenValidationResponse:
+async def refresh_token(current_user: User = Depends(get_current_user)) -> TokenValidationResponse:
     """
     Refresh JWT token before expiry.
 
@@ -431,8 +379,8 @@ async def refresh_token(
             id=str(current_user.id),
             email=current_user.email,
             created_at=current_user.created_at,
-            is_active=current_user.is_active
-        )
+            is_active=current_user.is_active,
+        ),
     )
 
 
@@ -446,18 +394,11 @@ async def refresh_token(
         "Client must discard the token."
     ),
     responses={
-        200: {
-            "description": "Logout successful",
-            "model": LogoutResponse
-        },
-        401: {
-            "description": "Not authenticated"
-        }
-    }
+        200: {"description": "Logout successful", "model": LogoutResponse},
+        401: {"description": "Not authenticated"},
+    },
 )
-async def logout(
-    current_user: User = Depends(get_current_user)
-) -> LogoutResponse:
+async def logout(current_user: User = Depends(get_current_user)) -> LogoutResponse:
     """
     Logout user (client-side token removal).
 
@@ -505,10 +446,10 @@ def _mask_email(email: str) -> str:
     Returns:
         str: Masked email address
     """
-    if '@' not in email:
+    if "@" not in email:
         return "***"
 
-    username, domain = email.split('@', 1)
+    username, domain = email.split("@", 1)
 
     if len(username) <= 1:
         return f"{username}***@{domain}"

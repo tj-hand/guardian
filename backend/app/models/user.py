@@ -5,11 +5,12 @@ This module defines the User model representing users in the system.
 Users authenticate via 6-digit email tokens.
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, Index
+import uuid
+
+from sqlalchemy import Boolean, Column, DateTime, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid
 
 from app.core.database import Base
 
@@ -35,7 +36,7 @@ class User(Base):
         primary_key=True,
         default=uuid.uuid4,
         nullable=False,
-        comment="Unique user identifier"
+        comment="Unique user identifier",
     )
 
     # Email address - unique constraint for authentication
@@ -44,15 +45,12 @@ class User(Base):
         unique=True,
         nullable=False,
         index=True,  # Unique index for fast email lookups
-        comment="User email address for authentication"
+        comment="User email address for authentication",
     )
 
     # Account status flag
     is_active = Column(
-        Boolean,
-        default=True,
-        nullable=False,
-        comment="Whether the user account is active"
+        Boolean, default=True, nullable=False, comment="Whether the user account is active"
     )
 
     # Timestamp fields with automatic updates
@@ -60,7 +58,7 @@ class User(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
-        comment="User creation timestamp (UTC)"
+        comment="User creation timestamp (UTC)",
     )
 
     updated_at = Column(
@@ -68,7 +66,7 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
-        comment="Last update timestamp (UTC)"
+        comment="Last update timestamp (UTC)",
     )
 
     # Relationship to tokens (one user can have many tokens)
@@ -76,15 +74,13 @@ class User(Base):
         "Token",
         back_populates="user",
         cascade="all, delete-orphan",  # Delete tokens when user is deleted
-        lazy="selectin"  # Efficient loading strategy
+        lazy="selectin",  # Efficient loading strategy
     )
 
     # Additional index for analytics queries
     __table_args__ = (
-        Index('ix_users_created_at', 'created_at'),
-        {
-            'comment': 'Users table for passwordless authentication system'
-        }
+        Index("ix_users_created_at", "created_at"),
+        {"comment": "Users table for passwordless authentication system"},
     )
 
     def __repr__(self) -> str:

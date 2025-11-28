@@ -4,18 +4,18 @@ Pydantic schemas package.
 This package contains all Pydantic models for request/response validation.
 """
 
-from app.schemas.health import HealthCheckResponse, DatabaseHealthCheck
 from app.schemas.auth import (
+    AuthErrorResponse,
+    LogoutResponse,
+    RateLimitError,
+    RefreshTokenRequest,
     TokenRequest,
     TokenRequestResponse,
     TokenValidation,
     TokenValidationResponse,
     UserResponse,
-    RefreshTokenRequest,
-    LogoutResponse,
-    AuthErrorResponse,
-    RateLimitError
 )
+from app.schemas.health import DatabaseHealthCheck, HealthCheckResponse
 
 __all__ = [
     "HealthCheckResponse",
@@ -28,5 +28,5 @@ __all__ = [
     "RefreshTokenRequest",
     "LogoutResponse",
     "AuthErrorResponse",
-    "RateLimitError"
+    "RateLimitError",
 ]

@@ -41,10 +41,10 @@
 
     <button
       v-if="!loading"
-      @click="handleResend"
       :disabled="resendCooldown > 0"
       class="resend-button"
       :aria-label="resendCooldown > 0 ? `Resend code available in ${resendCooldown} seconds` : 'Resend code'"
+      @click="handleResend"
     >
       {{ resendButtonText }}
     </button>

@@ -9,21 +9,18 @@ within a time window.
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
-from sqlalchemy import select, func
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.token import Token
 from app.core.config import get_settings
-
+from app.models.token import Token
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-async def check_rate_limit(
-    db: AsyncSession,
-    user_id: str
-) -> Tuple[bool, int, int]:
+async def check_rate_limit(db: AsyncSession, user_id: str) -> Tuple[bool, int, int]:
     """
     Check if user has exceeded rate limit for token requests.
 
@@ -111,10 +108,7 @@ async def check_rate_limit(
     return True, attempts_remaining, 0
 
 
-async def check_rate_limit_by_email(
-    db: AsyncSession,
-    email: str
-) -> Tuple[bool, int, int]:
+async def check_rate_limit_by_email(db: AsyncSession, email: str) -> Tuple[bool, int, int]:
     """
     Check rate limit for an email address.
 
@@ -138,9 +132,7 @@ async def check_rate_limit_by_email(
     from app.models.user import User
 
     # Try to find user by email
-    result = await db.execute(
-        select(User).where(User.email == email)
-    )
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     # If user doesn't exist, allow request (first time)
@@ -151,10 +143,7 @@ async def check_rate_limit_by_email(
     return await check_rate_limit(db, str(user.id))
 
 
-async def get_rate_limit_info(
-    db: AsyncSession,
-    user_id: str
-) -> dict:
+async def get_rate_limit_info(db: AsyncSession, user_id: str) -> dict:
     """
     Get detailed rate limit information for a user.
 
@@ -193,5 +182,5 @@ async def get_rate_limit_info(
         "window_minutes": settings.rate_limit_window_minutes,
         "current_count": request_count,
         "window_start": window_start.isoformat(),
-        "is_limited": request_count >= settings.rate_limit_requests
+        "is_limited": request_count >= settings.rate_limit_requests,
     }

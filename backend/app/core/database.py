@@ -5,11 +5,11 @@ This module provides SQLAlchemy database configuration, connection pooling,
 and session management for the Email Token Authentication system.
 """
 
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool
 import os
+from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 # Database connection settings from environment variables
 POSTGRES_USER = os.getenv("POSTGRES_USER", "authuser")
@@ -19,7 +19,10 @@ POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "auth_db")
 
 # Construct async PostgreSQL connection URL
-DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+DATABASE_URL = (
+    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+    f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
 
 # Create async engine with connection pooling
 # For production, adjust pool settings based on expected concurrent connections
@@ -46,6 +49,7 @@ AsyncSessionLocal = async_sessionmaker(
 # Base class for all SQLAlchemy models
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
 

@@ -14,19 +14,18 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.config import get_settings
-from app.core.database import engine, close_db
 from app.api.routes import health
+from app.core.config import get_settings
+from app.core.database import close_db, engine
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     # Test database connection
     try:
-        async with engine.connect() as conn:
+        async with engine.connect():
             logger.info("Database connection successful")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
@@ -90,15 +89,12 @@ app = FastAPI(
     redoc_url="/redoc" if settings.is_development else None,
     lifespan=lifespan,
     openapi_tags=[
-        {
-            "name": "Health",
-            "description": "Health check and monitoring endpoints"
-        },
+        {"name": "Health", "description": "Health check and monitoring endpoints"},
         {
             "name": "Authentication",
-            "description": "Email token authentication endpoints (Sprint 2)"
-        }
-    ]
+            "description": "Email token authentication endpoints (Sprint 2)",
+        },
+    ],
 )
 
 
@@ -116,10 +112,10 @@ app.add_middleware(
 
 # Exception Handlers
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request,
-    exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """
     Handle Pydantic validation errors.
@@ -140,16 +136,13 @@ async def validation_exception_handler(
         content={
             "detail": exc.errors(),
             "body": exc.body,
-            "message": "Request validation failed. Please check your input."
-        }
+            "message": "Request validation failed. Please check your input.",
+        },
     )
 
 
 @app.exception_handler(SQLAlchemyError)
-async def sqlalchemy_exception_handler(
-    request: Request,
-    exc: SQLAlchemyError
-) -> JSONResponse:
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     """
     Handle SQLAlchemy database errors.
 
@@ -169,18 +162,12 @@ async def sqlalchemy_exception_handler(
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": detail,
-            "message": "An error occurred while processing your request."
-        }
+        content={"detail": detail, "message": "An error occurred while processing your request."},
     )
 
 
 @app.exception_handler(Exception)
-async def general_exception_handler(
-    request: Request,
-    exc: Exception
-) -> JSONResponse:
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Handle all uncaught exceptions.
 
@@ -195,7 +182,7 @@ async def general_exception_handler(
     """
     logger.error(
         f"Unhandled exception on {request.url.path}: {type(exc).__name__} - {str(exc)}",
-        exc_info=True
+        exc_info=True,
     )
 
     # Don't expose internal details in production
@@ -205,12 +192,13 @@ async def general_exception_handler(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": detail,
-            "message": "An unexpected error occurred. Please try again later."
-        }
+            "message": "An unexpected error occurred. Please try again later.",
+        },
     )
 
 
 # Middleware for request logging
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -228,9 +216,7 @@ async def log_requests(request: Request, call_next):
 
     response = await call_next(request)
 
-    logger.info(
-        f"{request.method} {request.url.path} - Status: {response.status_code}"
-    )
+    logger.info(f"{request.method} {request.url.path} - Status: {response.status_code}")
 
     return response
 
@@ -241,17 +227,16 @@ async def log_requests(request: Request, call_next):
 app.include_router(health.router)
 
 # Authentication routes (Sprint 2)
-from app.api.routes import auth
+from app.api.routes import auth  # noqa: E402
+
 app.include_router(auth.router, prefix=settings.api_v1_prefix)
 
 
 # Root endpoint
 
+
 @app.get(
-    "/",
-    tags=["Root"],
-    summary="Root Endpoint",
-    description="Welcome message and API information"
+    "/", tags=["Root"], summary="Root Endpoint", description="Welcome message and API information"
 )
 async def root() -> dict:
     """
@@ -268,7 +253,7 @@ async def root() -> dict:
         "version": "1.0.0",
         "environment": settings.app_env,
         "docs": "/docs" if settings.is_development else None,
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -278,9 +263,5 @@ if __name__ == "__main__":
     # Run with uvicorn for development
     # In production, use: uvicorn app.main:app --host 0.0.0.0 --port 8000
     uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.is_development,
-        log_level="info"
+        "app.main:app", host="0.0.0.0", port=8000, reload=settings.is_development, log_level="info"
     )
