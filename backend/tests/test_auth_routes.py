@@ -38,7 +38,10 @@ class TestRequestTokenEndpoint:
         assert "email" in data
         assert "expires_in_minutes" in data
         assert "***" in data["email"]  # Email should be masked
-        assert data["expires_in_minutes"] == 15
+        # expires_in_minutes matches config default (token_expiry_minutes)
+        from app.core.config import get_settings
+        settings = get_settings()
+        assert data["expires_in_minutes"] == settings.token_expiry_minutes
 
         # Verify email was sent
         assert mock_send_email.called
@@ -167,7 +170,8 @@ class TestRateLimiting:
 
         data = response.json()
         assert "detail" in data
-        assert "retry_after" in data
+        # retry_after is nested inside the detail object
+        assert "retry_after" in data["detail"]
 
     @pytest.mark.asyncio
     @patch("app.services.email_service.send_token_email")

@@ -281,8 +281,9 @@ class TestTokenLifecycle:
         """Test creating multiple tokens for same user."""
         # Act - add delay to ensure different timestamps
         # JWT iat (issued at) uses second precision, so we need >1 second delay
+        # Use 2 seconds to account for CI timing variations
         token1 = jwt_service.create_access_token(sample_user)
-        await asyncio.sleep(1.1)  # Ensure different iat timestamps (second precision)
+        await asyncio.sleep(2)  # Ensure different iat timestamps (second precision)
         token2 = jwt_service.create_access_token(sample_user)
 
         # Assert - Both tokens should be valid but different (different iat)

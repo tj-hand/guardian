@@ -6,7 +6,7 @@ sent via email. Tokens are hashed for security and expire after 15 minutes.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String
@@ -81,8 +81,12 @@ class Token(Base):
     )
 
     # Creation timestamp
+    # Use both default (Python-side) and server_default (DB-side) to allow:
+    # - Explicit setting in tests (uses the provided value)
+    # - Auto-generation when not set (uses server default)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
         nullable=False,
         comment="Token creation timestamp (UTC)",
