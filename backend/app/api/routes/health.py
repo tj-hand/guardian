@@ -7,13 +7,14 @@ and service status. Used by load balancers, orchestrators, and monitoring tools.
 
 import time
 from typing import Literal
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 
-from app.core.config import get_settings, Settings
+from fastapi import APIRouter, Depends, status
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import Settings, get_settings
 from app.core.database import get_db
-from app.schemas.health import HealthCheckResponse, DatabaseHealthCheck
+from app.schemas.health import DatabaseHealthCheck, HealthCheckResponse
 
 router = APIRouter(tags=["Health"])
 
@@ -37,17 +38,13 @@ async def check_database_health(db: AsyncSession) -> DatabaseHealthCheck:
         response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
 
         return DatabaseHealthCheck(
-            connected=True,
-            response_time_ms=round(response_time, 2),
-            error=None
+            connected=True, response_time_ms=round(response_time, 2), error=None
         )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
 
         return DatabaseHealthCheck(
-            connected=False,
-            response_time_ms=round(response_time, 2),
-            error=str(e)
+            connected=False, response_time_ms=round(response_time, 2), error=str(e)
         )
 
 
@@ -67,10 +64,10 @@ async def check_database_health(db: AsyncSession) -> DatabaseHealthCheck:
                         "app_name": "Email Token Auth",
                         "environment": "development",
                         "database": "connected",
-                        "version": "1.0.0"
+                        "version": "1.0.0",
                     }
                 }
-            }
+            },
         },
         503: {
             "description": "Application is unhealthy",
@@ -82,18 +79,15 @@ async def check_database_health(db: AsyncSession) -> DatabaseHealthCheck:
                         "environment": "development",
                         "database": "disconnected",
                         "version": "1.0.0",
-                        "details": {
-                            "error": "Database connection failed"
-                        }
+                        "details": {"error": "Database connection failed"},
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def health_check(
-    db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings)
+    db: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)
 ) -> HealthCheckResponse:
     """
     Perform comprehensive health check.
@@ -131,7 +125,7 @@ async def health_check(
         database_status = "error"
         details = {
             "database_error": db_health.error,
-            "database_response_time_ms": db_health.response_time_ms
+            "database_response_time_ms": db_health.response_time_ms,
         }
 
     return HealthCheckResponse(
@@ -140,7 +134,7 @@ async def health_check(
         environment=settings.app_env,
         database=database_status,
         version="1.0.0",
-        details=details
+        details=details,
     )
 
 
@@ -151,12 +145,10 @@ async def health_check(
     description="Check if the application is ready to accept traffic",
     responses={
         200: {"description": "Application is ready"},
-        503: {"description": "Application is not ready"}
-    }
+        503: {"description": "Application is not ready"},
+    },
 )
-async def readiness_check(
-    db: AsyncSession = Depends(get_db)
-) -> dict:
+async def readiness_check(db: AsyncSession = Depends(get_db)) -> dict:
     """
     Kubernetes-style readiness probe.
 
@@ -192,9 +184,7 @@ async def readiness_check(
     status_code=status.HTTP_200_OK,
     summary="Liveness Check",
     description="Check if the application is alive",
-    responses={
-        200: {"description": "Application is alive"}
-    }
+    responses={200: {"description": "Application is alive"}},
 )
 async def liveness_check() -> dict:
     """

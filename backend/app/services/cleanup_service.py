@@ -10,10 +10,10 @@ from the database. Can be run as:
 """
 
 import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import token_service
-
 
 logger = logging.getLogger(__name__)
 

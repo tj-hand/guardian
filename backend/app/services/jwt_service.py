@@ -7,7 +7,7 @@ and contain user identity claims.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from jose import JWTError, jwt
 
@@ -54,7 +54,7 @@ def create_access_token(user: User, expires_delta: Optional[timedelta] = None) -
         "sub": str(user.id),  # Subject: user ID
         "email": user.email,  # Custom claim: email
         "exp": expire,  # Expiration time
-        "iat": datetime.now(timezone.utc)  # Issued at
+        "iat": datetime.now(timezone.utc),  # Issued at
     }
 
     # Encode token using secret key and HS256 algorithm
@@ -126,12 +126,12 @@ def verify_token(token: str) -> Optional[str]:
         payload = decode_access_token(token)
 
         # Extract user ID from "sub" claim
-        user_id: str = payload.get("sub")
+        user_id = payload.get("sub")
 
         if user_id is None:
             return None
 
-        return user_id
+        return str(user_id)
 
     except JWTError:
         # Token is invalid, expired, or malformed

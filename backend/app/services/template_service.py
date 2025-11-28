@@ -8,12 +8,12 @@ and HTML email formats with white-label customization.
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 from jinja2.exceptions import TemplateError
 
 from app.core.config import get_settings
-
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -54,7 +54,7 @@ class TemplateService:
         # Determine template directory
         if template_path:
             self.template_path = Path(template_path)
-        elif hasattr(settings, 'email_template_path') and settings.email_template_path:
+        elif hasattr(settings, "email_template_path") and settings.email_template_path:
             self.template_path = Path(settings.email_template_path)
         else:
             # Default to app/templates/email relative to project root
@@ -63,8 +63,7 @@ class TemplateService:
         # Ensure template directory exists
         if not self.template_path.exists():
             logger.warning(
-                f"Template directory not found: {self.template_path}. "
-                "Creating directory..."
+                f"Template directory not found: {self.template_path}. " "Creating directory..."
             )
             self.template_path.mkdir(parents=True, exist_ok=True)
 
@@ -106,11 +105,10 @@ class TemplateService:
         """
         branding_context = {
             # Core branding
-            "company_name": getattr(settings, 'company_name', settings.app_name),
+            "company_name": getattr(settings, "company_name", settings.app_name),
             "app_name": settings.app_name,
-            "support_email": getattr(settings, 'support_email', 'support@example.com'),
-            "brand_primary_color": getattr(settings, 'brand_primary_color', '#007bff'),
-
+            "support_email": getattr(settings, "support_email", "support@example.com"),
+            "brand_primary_color": getattr(settings, "brand_primary_color", "#007bff"),
             # Authentication settings (useful for email content)
             "expiry_minutes": settings.token_expiry_minutes,
             "token_length": settings.token_length,
@@ -118,11 +116,7 @@ class TemplateService:
 
         return branding_context
 
-    def render_template(
-        self,
-        template_name: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def render_template(self, template_name: str, context: Optional[Dict[str, Any]] = None) -> str:
         """
         Render an email template with provided context and branding variables.
 
@@ -170,32 +164,20 @@ class TemplateService:
 
         except TemplateNotFound:
             logger.error(f"Template not found: {template_name} in {self.template_path}")
-            raise TemplateNotFoundError(
-                f"Email template '{template_name}' not found"
-            )
+            raise TemplateNotFoundError(f"Email template '{template_name}' not found")
 
         except TemplateError as e:
-            logger.error(
-                f"Template rendering error for {template_name}: {e}",
-                exc_info=True
-            )
-            raise TemplateRenderError(
-                f"Failed to render template '{template_name}': {str(e)}"
-            )
+            logger.error(f"Template rendering error for {template_name}: {e}", exc_info=True)
+            raise TemplateRenderError(f"Failed to render template '{template_name}': {str(e)}")
 
         except Exception as e:
-            logger.error(
-                f"Unexpected error rendering template {template_name}: {e}",
-                exc_info=True
-            )
+            logger.error(f"Unexpected error rendering template {template_name}: {e}", exc_info=True)
             raise TemplateRenderError(
                 f"Unexpected error rendering template '{template_name}': {str(e)}"
             )
 
     def get_fallback_template(
-        self,
-        template_type: str,
-        context: Optional[Dict[str, Any]] = None
+        self, template_type: str, context: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Get a hardcoded fallback template when file template is unavailable.
@@ -225,7 +207,7 @@ class TemplateService:
 
         # Fallback templates
         fallback_templates = {
-            'token_text': """Hello,
+            "token_text": """Hello,
 
 Your verification code is:
 
@@ -239,7 +221,7 @@ Best regards,
 {{ company_name }}
 {{ support_email }}
 """,
-            'token_html': """<!DOCTYPE html>
+            "token_html": """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -250,7 +232,8 @@ Best regards,
         <h2 style="color: {{ brand_primary_color }};">{{ company_name }}</h2>
         <p>Hello,</p>
         <p>Your verification code is:</p>
-        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; margin: 20px 0;">
+        <div style="background-color: #f4f4f4; padding: 20px; text-align: center;
+                    font-size: 32px; font-weight: bold; letter-spacing: 8px; margin: 20px 0;">
             {{ token }}
         </div>
         <p>This code will expire in <strong>{{ expiry_minutes }} minutes</strong>.</p>
@@ -264,7 +247,7 @@ Best regards,
     </div>
 </body>
 </html>
-"""
+""",
         }
 
         template_string = fallback_templates.get(template_type)
@@ -279,11 +262,7 @@ Best regards,
         logger.warning(f"Using fallback template for type: {template_type}")
         return rendered
 
-    def render_token_email(
-        self,
-        token: str,
-        format_type: str = "text"
-    ) -> str:
+    def render_token_email(self, token: str, format_type: str = "text") -> str:
         """
         Convenience method to render token authentication email.
 
@@ -306,11 +285,13 @@ Best regards,
             >>> text_email = service.render_token_email("123456", "text")
             >>> html_email = service.render_token_email("123456", "html")
         """
-        if format_type not in ['text', 'html']:
+        if format_type not in ["text", "html"]:
             raise ValueError(f"Invalid format_type: {format_type}. Must be 'text' or 'html'")
 
         # Determine template filename
-        template_name = f"token_email.{format_type}" if format_type == "text" else "token_email.html"
+        template_name = (
+            f"token_email.{format_type}" if format_type == "text" else "token_email.html"
+        )
 
         # Context for token email
         context = {
@@ -322,9 +303,7 @@ Best regards,
             return self.render_template(template_name, context)
 
         except (TemplateNotFoundError, TemplateRenderError) as e:
-            logger.warning(
-                f"Failed to load template file {template_name}, using fallback: {e}"
-            )
+            logger.warning(f"Failed to load template file {template_name}, using fallback: {e}")
             # Fall back to embedded template
             fallback_type = f"token_{format_type}"
             return self.get_fallback_template(fallback_type, context)
@@ -333,11 +312,13 @@ Best regards,
 # Custom exceptions
 class TemplateNotFoundError(Exception):
     """Raised when a template file cannot be found."""
+
     pass
 
 
 class TemplateRenderError(Exception):
     """Raised when template rendering fails."""
+
     pass
 
 

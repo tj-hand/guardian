@@ -9,11 +9,12 @@ It exports the necessary components for Manifast to mount Guardian as a plugin.
 from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
 
-# Model exports for Manifast's Alembic
-from app.models import User, Token
-
 # Database utilities
-from app.core.database import get_db, init_db as init_database, Base
+from app.core.database import Base, get_db
+from app.core.database import init_db as init_database
+
+# Model exports for Manifast's Alembic
+from app.models import Token, User
 
 
 def setup_guardian(app, prefix="/api/auth"):
@@ -41,16 +42,13 @@ __all__ = [
     # Routers
     "auth_router",
     "health_router",
-
     # Models
     "User",
     "Token",
-
     # Database
     "get_db",
     "init_database",
     "Base",
-
     # Setup
     "setup_guardian",
 ]

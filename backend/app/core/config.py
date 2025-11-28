@@ -6,8 +6,9 @@ Email Token Authentication system. All settings are loaded from environment
 variables with sensible defaults for development.
 """
 
-from typing import List
 from functools import lru_cache
+from typing import List
+
 from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,100 +23,66 @@ class Settings(BaseSettings):
 
     # Application Settings
     app_name: str = Field(
-        default="Email Token Auth",
-        description="Application name displayed in API docs and emails"
+        default="Email Token Auth", description="Application name displayed in API docs and emails"
     )
 
     app_env: str = Field(
         default="development",
-        description="Application environment: development, staging, production"
+        description="Application environment: development, staging, production",
     )
 
     secret_key: str = Field(
         default="dev-secret-key-change-in-production",
-        description="Secret key for JWT tokens and encryption. MUST be changed in production!"
+        description="Secret key for JWT tokens and encryption. MUST be changed in production!",
     )
 
     # Token Settings
     token_expiry_minutes: int = Field(
-        default=2,
-        description="Token expiry time in minutes",
-        ge=1,
-        le=60
+        default=2, description="Token expiry time in minutes", ge=1, le=60
     )
 
     token_length: int = Field(
-        default=6,
-        description="Length of authentication token (number of digits)",
-        ge=4,
-        le=8
+        default=6, description="Length of authentication token (number of digits)", ge=4, le=8
     )
 
     # Database Settings (Individual Components)
-    postgres_user: str = Field(
-        default="authuser",
-        description="PostgreSQL username"
-    )
+    postgres_user: str = Field(default="authuser", description="PostgreSQL username")
 
-    postgres_password: str = Field(
-        default="authpass123",
-        description="PostgreSQL password"
-    )
+    postgres_password: str = Field(default="authpass123", description="PostgreSQL password")
 
-    postgres_host: str = Field(
-        default="database",
-        description="PostgreSQL host address"
-    )
+    postgres_host: str = Field(default="database", description="PostgreSQL host address")
 
-    postgres_port: str = Field(
-        default="5432",
-        description="PostgreSQL port"
-    )
+    postgres_port: str = Field(default="5432", description="PostgreSQL port")
 
-    postgres_db: str = Field(
-        default="auth_db",
-        description="PostgreSQL database name"
-    )
+    postgres_db: str = Field(default="auth_db", description="PostgreSQL database name")
 
     # Mailgun Settings
-    mailgun_api_key: str = Field(
-        default="",
-        description="Mailgun API key for sending emails"
-    )
+    mailgun_api_key: str = Field(default="", description="Mailgun API key for sending emails")
 
-    mailgun_domain: str = Field(
-        default="",
-        description="Mailgun domain for sending emails"
-    )
+    mailgun_domain: str = Field(default="", description="Mailgun domain for sending emails")
 
     mailgun_from_email: str = Field(
-        default="noreply@example.com",
-        description="From email address for authentication emails"
+        default="noreply@example.com", description="From email address for authentication emails"
     )
 
     mailgun_from_name: str = Field(
-        default="Email Token Auth",
-        description="From name for authentication emails"
+        default="Email Token Auth", description="From name for authentication emails"
     )
 
     # CORS Settings
     allowed_origins: str = Field(
         default="http://localhost:5173,http://localhost:5174",
-        description="Comma-separated list of allowed CORS origins"
+        description="Comma-separated list of allowed CORS origins",
     )
 
     # Session Settings
     session_expiry_days: int = Field(
-        default=7,
-        description="Session expiry time in days",
-        ge=1,
-        le=30
+        default=7, description="Session expiry time in days", ge=1, le=30
     )
 
     # JWT Settings
     jwt_algorithm: str = Field(
-        default="HS256",
-        description="JWT signing algorithm (HS256, HS384, HS512)"
+        default="HS256", description="JWT signing algorithm (HS256, HS384, HS512)"
     )
 
     # Rate Limiting Settings
@@ -123,14 +90,11 @@ class Settings(BaseSettings):
         default=3,
         description="Maximum token requests per email within rate limit window",
         ge=1,
-        le=10
+        le=10,
     )
 
     rate_limit_window_minutes: int = Field(
-        default=15,
-        description="Rate limit window in minutes",
-        ge=5,
-        le=60
+        default=15, description="Rate limit window in minutes", ge=5, le=60
     )
 
     # Email Whitelist Settings
@@ -143,45 +107,36 @@ class Settings(BaseSettings):
             "request a token (open registration mode). To bootstrap the "
             "first user, manually insert into database or disable "
             "temporarily."
-        )
+        ),
     )
 
     # API Settings
-    api_v1_prefix: str = Field(
-        default="/api/v1",
-        description="API version 1 prefix"
-    )
+    api_v1_prefix: str = Field(default="/api/v1", description="API version 1 prefix")
 
     # Branding Configuration (White-Label)
     company_name: str = Field(
         default="Email Token Auth",
-        description="Company/brand name displayed in emails and communications"
+        description="Company/brand name displayed in emails and communications",
     )
 
     support_email: str = Field(
-        default="support@example.com",
-        description="Support email address displayed in emails"
+        default="support@example.com", description="Support email address displayed in emails"
     )
 
     brand_primary_color: str = Field(
-        default="#007bff",
-        description="Primary brand color (hex format) for email templates"
+        default="#007bff", description="Primary brand color (hex format) for email templates"
     )
 
     email_template_path: str = Field(
-        default="app/templates/email",
-        description="Path to email template directory"
+        default="app/templates/email", description="Path to email template directory"
     )
 
     # Model configuration
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> str:
         """
@@ -195,7 +150,7 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def allowed_origins_list(self) -> List[str]:
         """
@@ -252,9 +207,7 @@ class Settings(BaseSettings):
             )
 
         if app_env == "production" and len(v) < 32:
-            raise ValueError(
-                "SECRET_KEY must be at least 32 characters in production"
-            )
+            raise ValueError("SECRET_KEY must be at least 32 characters in production")
 
         return v
 

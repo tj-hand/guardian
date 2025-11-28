@@ -10,11 +10,11 @@ This module will contain utilities for:
 Currently serving as a placeholder for Sprint 1.
 """
 
+from datetime import timedelta
 from typing import Optional
-from datetime import datetime, timedelta
-
 
 # Placeholder functions to be implemented in Sprint 2
+
 
 async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """

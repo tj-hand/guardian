@@ -6,13 +6,12 @@ This module handles email delivery using Mailgun's API for sending
 """
 
 import logging
-from typing import Optional
-import requests
-from requests.exceptions import RequestException, Timeout
+
+import requests  # type: ignore[import-untyped]
+from requests.exceptions import RequestException, Timeout  # type: ignore[import-untyped]
 
 from app.core.config import get_settings
 from app.services.template_service import get_template_service
-
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -55,16 +54,12 @@ async def send_token_email(email: str, token: str) -> bool:
 
     # Render email body from template with branding
     try:
-        email_body = template_service.render_token_email(
-            token=token,
-            format_type="text"
-        )
+        email_body = template_service.render_token_email(token=token, format_type="text")
     except Exception as e:
         logger.error(f"Failed to render email template: {e}")
         # Use fallback template
         email_body = template_service.get_fallback_template(
-            template_type="token_text",
-            context={"token": token}
+            template_type="token_text", context={"token": token}
         )
 
     # Mailgun API configuration
@@ -76,17 +71,12 @@ async def send_token_email(email: str, token: str) -> bool:
         "from": f"{settings.mailgun_from_name} <{settings.mailgun_from_email}>",
         "to": email,
         "subject": f"Your {settings.app_name} Login Code",
-        "text": email_body
+        "text": email_body,
     }
 
     try:
         # Send email via Mailgun API
-        response = requests.post(
-            url,
-            auth=auth,
-            data=data,
-            timeout=10  # 10 second timeout
-        )
+        response = requests.post(url, auth=auth, data=data, timeout=10)  # 10 second timeout
 
         # Check response status
         if response.status_code == 200:
@@ -98,19 +88,14 @@ async def send_token_email(email: str, token: str) -> bool:
             )
 
     except Timeout:
-        logger.error(
-            f"Mailgun API timeout while sending to {_mask_email(email)}"
-        )
+        logger.error(f"Mailgun API timeout while sending to {_mask_email(email)}")
 
     except RequestException as e:
-        logger.error(
-            f"Network error sending email to {_mask_email(email)}: {str(e)}"
-        )
+        logger.error(f"Network error sending email to {_mask_email(email)}: {str(e)}")
 
     except Exception as e:
         logger.error(
-            f"Unexpected error sending email to {_mask_email(email)}: {str(e)}",
-            exc_info=True
+            f"Unexpected error sending email to {_mask_email(email)}: {str(e)}", exc_info=True
         )
 
     # Always return True for security reasons
@@ -138,10 +123,10 @@ def _mask_email(email: str) -> str:
         >>> _mask_email("user@example.com")
         'u***@example.com'
     """
-    if '@' not in email:
+    if "@" not in email:
         return "***"
 
-    username, domain = email.split('@', 1)
+    username, domain = email.split("@", 1)
 
     if len(username) <= 1:
         return f"{username}***@{domain}"

@@ -5,11 +5,12 @@ This module defines the Token model for storing 6-digit authentication tokens
 sent via email. Tokens are hashed for security and expire after 15 minutes.
 """
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Index, CheckConstraint
+import uuid
+
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import uuid
 
 from app.core.database import Base
 
@@ -39,16 +40,16 @@ class Token(Base):
         primary_key=True,
         default=uuid.uuid4,
         nullable=False,
-        comment="Unique token identifier"
+        comment="Unique token identifier",
     )
 
     # Foreign key to users table with CASCADE delete
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey('users.id', ondelete='CASCADE'),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,  # Index for user token history queries
-        comment="Reference to the user who owns this token"
+        comment="Reference to the user who owns this token",
     )
 
     # SHA-256 hash of the 6-digit token (64 characters)
@@ -56,7 +57,7 @@ class Token(Base):
         String(64),
         nullable=False,
         index=True,  # Critical index for fast token validation lookups
-        comment="SHA-256 hash of the 6-digit authentication token"
+        comment="SHA-256 hash of the 6-digit authentication token",
     )
 
     # Expiration timestamp - tokens are typically valid for 15 minutes
@@ -64,14 +65,14 @@ class Token(Base):
         DateTime(timezone=True),
         nullable=False,
         index=True,  # Index for cleanup queries (finding expired tokens)
-        comment="Token expiration timestamp (UTC)"
+        comment="Token expiration timestamp (UTC)",
     )
 
     # Usage timestamp - NULL means token hasn't been used yet
     used_at = Column(
         DateTime(timezone=True),
         nullable=True,
-        comment="Timestamp when token was used (NULL if unused)"
+        comment="Timestamp when token was used (NULL if unused)",
     )
 
     # Creation timestamp
@@ -79,31 +80,23 @@ class Token(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
-        comment="Token creation timestamp (UTC)"
+        comment="Token creation timestamp (UTC)",
     )
 
     # Relationship to user (many tokens belong to one user)
-    user = relationship(
-        "User",
-        back_populates="tokens"
-    )
+    user = relationship("User", back_populates="tokens")
 
     # Table constraints and indexes
     __table_args__ = (
         # Check constraint: expiration must be after creation
-        CheckConstraint(
-            'expires_at > created_at',
-            name='check_expires_at_after_created_at'
-        ),
+        CheckConstraint("expires_at > created_at", name="check_expires_at_after_created_at"),
         # Additional indexes for query optimization
-        Index('ix_tokens_token_hash', 'token_hash'),
-        Index('ix_tokens_user_id', 'user_id'),
-        Index('ix_tokens_expires_at', 'expires_at'),
+        Index("ix_tokens_token_hash", "token_hash"),
+        Index("ix_tokens_user_id", "user_id"),
+        Index("ix_tokens_expires_at", "expires_at"),
         # Composite index for common query pattern (unused + not expired)
-        Index('ix_tokens_validation', 'token_hash', 'expires_at', 'used_at'),
-        {
-            'comment': 'Authentication tokens table for 6-digit email codes'
-        }
+        Index("ix_tokens_validation", "token_hash", "expires_at", "used_at"),
+        {"comment": "Authentication tokens table for 6-digit email codes"},
     )
 
     def __repr__(self) -> str:
@@ -142,4 +135,5 @@ class Token(Base):
         The caller must commit the session.
         """
         from datetime import datetime, timezone
+
         self.used_at = datetime.now(timezone.utc)
