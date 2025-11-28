@@ -341,7 +341,7 @@ services:
 
   # Email Auth Database
   auth-database:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -544,7 +544,7 @@ If you need functionality not available through configuration:
 
 | Email Auth Version | Min Python | Min Node | Min PostgreSQL | Min Docker |
 |--------------------|------------|----------|----------------|------------|
-| 1.x.x              | 3.11       | 18.x     | 14.x           | 20.x       |
+| 1.x.x              | 3.13       | 22.x     | 18.x           | 20.x       |
 
 ---
 

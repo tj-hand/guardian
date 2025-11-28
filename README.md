@@ -16,8 +16,8 @@ Passwordless authentication service using 6-digit email tokens. Built with Vue 3
 | Component | Technology |
 |-----------|------------|
 | Frontend | Vue 3, TypeScript, Vite, Pinia, Vue Router |
-| Backend | FastAPI, Python 3.11, SQLAlchemy, Alembic |
-| Database | PostgreSQL 17 |
+| Backend | FastAPI, Python 3.13, SQLAlchemy, Alembic |
+| Database | PostgreSQL 18 |
 | Email | Mailgun API |
 | Auth | JWT tokens with configurable expiry |
 

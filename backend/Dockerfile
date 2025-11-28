@@ -1,14 +1,14 @@
 # ========================================
 # Guardian Backend Dockerfile
 # ========================================
-# Multi-stage build for Python 3.11 FastAPI application
+# Multi-stage build for Python 3.13 FastAPI application
 # Layer 1 module for Manifast integration
 # Optimized for production with development support
 
 # ========================================
 # Stage 1: Base Image
 # ========================================
-FROM python:3.11-slim as base
+FROM python:3.13-slim as base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
