@@ -1,0 +1,101 @@
+# ==============================================================================
+# Guardian Project .gitignore
+# ==============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+dist/
+dist-ssr/
+*.local
+
+# Playwright test artifacts
+playwright-report/
+test-results/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+.cache/
+
+# Customizable branding assets (should be configured per deployment)
+frontend/src/assets/branding/*
+!frontend/src/assets/branding/.gitkeep
+
+# Email templates (customizable per deployment)
+backend/app/templates/email/*.html
+backend/app/templates/email/*.txt
+!backend/app/templates/email/.gitkeep
+!backend/app/templates/email/default_token.txt
+
+# Temporary documentation and completion markers
+*_COMPLETE.txt
+*_READY.txt
+SPRINT*_PLAN.md
+SPRINT*_COMPLETION_REPORT.md
+IMPLEMENTATION_SUMMARY.md
+RESUME_WORK.md
+
+# Work state tracking (temporary files)
+.work_state.json
