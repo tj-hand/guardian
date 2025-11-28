@@ -8,40 +8,28 @@ This module tests:
 - POST /auth/logout - User logout
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from httpx import AsyncClient
 
-from app.services import token_service, jwt_service
 from app.models.user import User
+from app.services import jwt_service, token_service
 
 
 class TestValidateTokenEndpoint:
     """Tests for POST /auth/validate-token endpoint."""
 
     @pytest.mark.asyncio
-    async def test_validate_token_success(
-        self,
-        async_client: AsyncClient,
-        db_session,
-        sample_user
-    ):
+    async def test_validate_token_success(self, async_client: AsyncClient, db_session, sample_user):
         """Test successful token validation and JWT creation."""
         # Arrange - Generate and store token
         token = token_service.generate_6_digit_token()
-        await token_service.create_token_for_user(
-            db_session,
-            str(sample_user.id),
-            token
-        )
+        await token_service.create_token_for_user(db_session, str(sample_user.id), token)
 
         # Act
         response = await async_client.post(
-            "/api/v1/auth/validate-token",
-            json={
-                "email": sample_user.email,
-                "token": token
-            }
+            "/api/v1/auth/validate-token", json={"email": sample_user.email, "token": token}
         )
 
         # Assert
@@ -67,19 +55,12 @@ class TestValidateTokenEndpoint:
         assert user_id == str(sample_user.id)
 
     @pytest.mark.asyncio
-    async def test_validate_token_invalid_email(
-        self,
-        async_client: AsyncClient,
-        db_session
-    ):
+    async def test_validate_token_invalid_email(self, async_client: AsyncClient, db_session):
         """Test token validation with non-existent email."""
         # Act
         response = await async_client.post(
             "/api/v1/auth/validate-token",
-            json={
-                "email": "nonexistent@example.com",
-                "token": "123456"
-            }
+            json={"email": "nonexistent@example.com", "token": "123456"},
         )
 
         # Assert
@@ -88,27 +69,17 @@ class TestValidateTokenEndpoint:
 
     @pytest.mark.asyncio
     async def test_validate_token_invalid_token(
-        self,
-        async_client: AsyncClient,
-        db_session,
-        sample_user
+        self, async_client: AsyncClient, db_session, sample_user
     ):
         """Test token validation with wrong token."""
         # Arrange - Create correct token
         correct_token = token_service.generate_6_digit_token()
-        await token_service.create_token_for_user(
-            db_session,
-            str(sample_user.id),
-            correct_token
-        )
+        await token_service.create_token_for_user(db_session, str(sample_user.id), correct_token)
 
         # Act - Try with wrong token
         response = await async_client.post(
             "/api/v1/auth/validate-token",
-            json={
-                "email": sample_user.email,
-                "token": "000000"  # Wrong token
-            }
+            json={"email": sample_user.email, "token": "000000"},  # Wrong token
         )
 
         # Assert
@@ -117,10 +88,7 @@ class TestValidateTokenEndpoint:
 
     @pytest.mark.asyncio
     async def test_validate_token_expired_token(
-        self,
-        async_client: AsyncClient,
-        db_session,
-        sample_user
+        self, async_client: AsyncClient, db_session, sample_user
     ):
         """Test token validation with expired token."""
         # Arrange - Create token that's already expired
@@ -129,21 +97,21 @@ class TestValidateTokenEndpoint:
 
         from app.models.token import Token
 
+        # Set created_at to 5 minutes ago so expires_at (1 minute ago) > created_at
+        # This satisfies the check_expires_at_after_created_at constraint
+        created_time = datetime.now(timezone.utc) - timedelta(minutes=5)
         expired_token_obj = Token(
             user_id=str(sample_user.id),
             token_hash=token_hash,
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)
+            created_at=created_time,
+            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
         )
         db_session.add(expired_token_obj)
         await db_session.commit()
 
         # Act
         response = await async_client.post(
-            "/api/v1/auth/validate-token",
-            json={
-                "email": sample_user.email,
-                "token": token
-            }
+            "/api/v1/auth/validate-token", json={"email": sample_user.email, "token": token}
         )
 
         # Assert
@@ -152,27 +120,16 @@ class TestValidateTokenEndpoint:
 
     @pytest.mark.asyncio
     async def test_validate_token_already_used(
-        self,
-        async_client: AsyncClient,
-        db_session,
-        sample_user
+        self, async_client: AsyncClient, db_session, sample_user
     ):
         """Test that token can only be used once."""
         # Arrange - Generate and store token
         token = token_service.generate_6_digit_token()
-        await token_service.create_token_for_user(
-            db_session,
-            str(sample_user.id),
-            token
-        )
+        await token_service.create_token_for_user(db_session, str(sample_user.id), token)
 
         # Act - First validation (should succeed)
         response1 = await async_client.post(
-            "/api/v1/auth/validate-token",
-            json={
-                "email": sample_user.email,
-                "token": token
-            }
+            "/api/v1/auth/validate-token", json={"email": sample_user.email, "token": token}
         )
 
         # Assert first validation succeeded
@@ -180,11 +137,7 @@ class TestValidateTokenEndpoint:
 
         # Act - Second validation (should fail - token already used)
         response2 = await async_client.post(
-            "/api/v1/auth/validate-token",
-            json={
-                "email": sample_user.email,
-                "token": token
-            }
+            "/api/v1/auth/validate-token", json={"email": sample_user.email, "token": token}
         )
 
         # Assert second validation failed
@@ -192,18 +145,12 @@ class TestValidateTokenEndpoint:
         assert "Invalid or expired token" in response2.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_validate_token_invalid_format(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_validate_token_invalid_format(self, async_client: AsyncClient):
         """Test validation with invalid token format."""
         # Act
         response = await async_client.post(
             "/api/v1/auth/validate-token",
-            json={
-                "email": "user@example.com",
-                "token": "abc123"  # Not all digits
-            }
+            json={"email": "user@example.com", "token": "abc123"},  # Not all digits
         )
 
         # Assert - Should fail validation
@@ -215,17 +162,11 @@ class TestMeEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_current_user_success(
-        self,
-        async_client: AsyncClient,
-        sample_user,
-        auth_headers
+        self, async_client: AsyncClient, sample_user, auth_headers
     ):
         """Test getting current user information with valid JWT."""
         # Act
-        response = await async_client.get(
-            "/api/v1/auth/me",
-            headers=auth_headers
-        )
+        response = await async_client.get("/api/v1/auth/me", headers=auth_headers)
 
         # Assert
         assert response.status_code == 200
@@ -237,49 +178,34 @@ class TestMeEndpoint:
         assert "created_at" in data
 
     @pytest.mark.asyncio
-    async def test_get_current_user_no_token(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_get_current_user_no_token(self, async_client: AsyncClient):
         """Test /me endpoint without authentication."""
         # Act
         response = await async_client.get("/api/v1/auth/me")
 
-        # Assert
-        assert response.status_code == 403  # Forbidden (no auth header)
+        # Assert - HTTPBearer returns 401 when no credentials provided
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_get_current_user_invalid_token(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_get_current_user_invalid_token(self, async_client: AsyncClient):
         """Test /me endpoint with invalid JWT."""
         # Act
         response = await async_client.get(
-            "/api/v1/auth/me",
-            headers={"Authorization": "Bearer invalid.token.here"}
+            "/api/v1/auth/me", headers={"Authorization": "Bearer invalid.token.here"}
         )
 
         # Assert
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_get_current_user_expired_token(
-        self,
-        async_client: AsyncClient,
-        sample_user
-    ):
+    async def test_get_current_user_expired_token(self, async_client: AsyncClient, sample_user):
         """Test /me endpoint with expired JWT."""
         # Arrange - Create expired token
-        expired_token = jwt_service.create_access_token(
-            sample_user,
-            timedelta(hours=-1)
-        )
+        expired_token = jwt_service.create_access_token(sample_user, timedelta(hours=-1))
 
         # Act
         response = await async_client.get(
-            "/api/v1/auth/me",
-            headers={"Authorization": f"Bearer {expired_token}"}
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {expired_token}"}
         )
 
         # Assert
@@ -291,17 +217,11 @@ class TestRefreshEndpoint:
 
     @pytest.mark.asyncio
     async def test_refresh_token_success(
-        self,
-        async_client: AsyncClient,
-        sample_user,
-        auth_headers
+        self, async_client: AsyncClient, sample_user, auth_headers
     ):
         """Test refreshing JWT token successfully."""
         # Act
-        response = await async_client.post(
-            "/api/v1/auth/refresh",
-            headers=auth_headers
-        )
+        response = await async_client.post("/api/v1/auth/refresh", headers=auth_headers)
 
         # Assert
         assert response.status_code == 200
@@ -323,47 +243,38 @@ class TestRefreshEndpoint:
         assert data["user"]["email"] == sample_user.email
 
     @pytest.mark.asyncio
-    async def test_refresh_token_no_auth(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_refresh_token_no_auth(self, async_client: AsyncClient):
         """Test refresh endpoint without authentication."""
         # Act
         response = await async_client.post("/api/v1/auth/refresh")
 
-        # Assert
-        assert response.status_code == 403
+        # Assert - HTTPBearer returns 401 when no credentials provided
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_refresh_token_invalid_token(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_refresh_token_invalid_token(self, async_client: AsyncClient):
         """Test refresh endpoint with invalid JWT."""
         # Act
         response = await async_client.post(
-            "/api/v1/auth/refresh",
-            headers={"Authorization": "Bearer invalid.token"}
+            "/api/v1/auth/refresh", headers={"Authorization": "Bearer invalid.token"}
         )
 
         # Assert
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_refresh_generates_new_token(
-        self,
-        async_client: AsyncClient,
-        auth_headers
-    ):
+    async def test_refresh_generates_new_token(self, async_client: AsyncClient, auth_headers):
         """Test that refresh generates a new token (not same as old)."""
+        import asyncio
+
         # Arrange
         old_token = auth_headers["Authorization"].replace("Bearer ", "")
 
+        # Wait to ensure different JWT timestamp (iat uses second precision)
+        await asyncio.sleep(1.1)
+
         # Act
-        response = await async_client.post(
-            "/api/v1/auth/refresh",
-            headers=auth_headers
-        )
+        response = await async_client.post("/api/v1/auth/refresh", headers=auth_headers)
 
         # Assert
         assert response.status_code == 200
@@ -377,17 +288,10 @@ class TestLogoutEndpoint:
     """Tests for POST /auth/logout endpoint."""
 
     @pytest.mark.asyncio
-    async def test_logout_success(
-        self,
-        async_client: AsyncClient,
-        auth_headers
-    ):
+    async def test_logout_success(self, async_client: AsyncClient, auth_headers):
         """Test successful logout."""
         # Act
-        response = await async_client.post(
-            "/api/v1/auth/logout",
-            headers=auth_headers
-        )
+        response = await async_client.post("/api/v1/auth/logout", headers=auth_headers)
 
         # Assert
         assert response.status_code == 200
@@ -397,38 +301,27 @@ class TestLogoutEndpoint:
         assert data["message"] == "Successfully logged out"
 
     @pytest.mark.asyncio
-    async def test_logout_no_auth(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_logout_no_auth(self, async_client: AsyncClient):
         """Test logout without authentication."""
         # Act
         response = await async_client.post("/api/v1/auth/logout")
 
-        # Assert
-        assert response.status_code == 403
+        # Assert - HTTPBearer returns 401 when no credentials provided
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_logout_invalid_token(
-        self,
-        async_client: AsyncClient
-    ):
+    async def test_logout_invalid_token(self, async_client: AsyncClient):
         """Test logout with invalid JWT."""
         # Act
         response = await async_client.post(
-            "/api/v1/auth/logout",
-            headers={"Authorization": "Bearer invalid.token"}
+            "/api/v1/auth/logout", headers={"Authorization": "Bearer invalid.token"}
         )
 
         # Assert
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_logout_token_still_valid_after(
-        self,
-        async_client: AsyncClient,
-        auth_headers
-    ):
+    async def test_logout_token_still_valid_after(self, async_client: AsyncClient, auth_headers):
         """
         Test that JWT remains valid after logout.
 
@@ -436,17 +329,11 @@ class TestLogoutEndpoint:
         True revocation requires token blacklist (future enhancement).
         """
         # Act - Logout
-        response = await async_client.post(
-            "/api/v1/auth/logout",
-            headers=auth_headers
-        )
+        response = await async_client.post("/api/v1/auth/logout", headers=auth_headers)
         assert response.status_code == 200
 
         # Act - Try to use token after logout
-        response = await async_client.get(
-            "/api/v1/auth/me",
-            headers=auth_headers
-        )
+        response = await async_client.get("/api/v1/auth/me", headers=auth_headers)
 
         # Assert - Token still works (stateless JWT behavior)
         assert response.status_code == 200
@@ -456,27 +343,14 @@ class TestAuthenticationFlow:
     """Integration tests for complete authentication flows."""
 
     @pytest.mark.asyncio
-    async def test_complete_auth_flow(
-        self,
-        async_client: AsyncClient,
-        db_session,
-        sample_user
-    ):
+    async def test_complete_auth_flow(self, async_client: AsyncClient, db_session, sample_user):
         """Test complete authentication flow from token to logout."""
         # Step 1: Validate token and get JWT
         token = token_service.generate_6_digit_token()
-        await token_service.create_token_for_user(
-            db_session,
-            str(sample_user.id),
-            token
-        )
+        await token_service.create_token_for_user(db_session, str(sample_user.id), token)
 
         validate_response = await async_client.post(
-            "/api/v1/auth/validate-token",
-            json={
-                "email": sample_user.email,
-                "token": token
-            }
+            "/api/v1/auth/validate-token", json={"email": sample_user.email, "token": token}
         )
         assert validate_response.status_code == 200
         jwt_token = validate_response.json()["access_token"]
@@ -484,32 +358,20 @@ class TestAuthenticationFlow:
         auth_headers = {"Authorization": f"Bearer {jwt_token}"}
 
         # Step 2: Access protected route (/me)
-        me_response = await async_client.get(
-            "/api/v1/auth/me",
-            headers=auth_headers
-        )
+        me_response = await async_client.get("/api/v1/auth/me", headers=auth_headers)
         assert me_response.status_code == 200
         assert me_response.json()["email"] == sample_user.email
 
         # Step 3: Refresh token
-        refresh_response = await async_client.post(
-            "/api/v1/auth/refresh",
-            headers=auth_headers
-        )
+        refresh_response = await async_client.post("/api/v1/auth/refresh", headers=auth_headers)
         assert refresh_response.status_code == 200
         new_jwt_token = refresh_response.json()["access_token"]
 
         # Step 4: Use new token to access protected route
         new_auth_headers = {"Authorization": f"Bearer {new_jwt_token}"}
-        me_response2 = await async_client.get(
-            "/api/v1/auth/me",
-            headers=new_auth_headers
-        )
+        me_response2 = await async_client.get("/api/v1/auth/me", headers=new_auth_headers)
         assert me_response2.status_code == 200
 
         # Step 5: Logout
-        logout_response = await async_client.post(
-            "/api/v1/auth/logout",
-            headers=new_auth_headers
-        )
+        logout_response = await async_client.post("/api/v1/auth/logout", headers=new_auth_headers)
         assert logout_response.status_code == 200

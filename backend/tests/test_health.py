@@ -8,8 +8,8 @@ This module tests all health check endpoints including:
 """
 
 import pytest
-from httpx import AsyncClient
 from fastapi import status
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio

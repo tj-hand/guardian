@@ -129,13 +129,32 @@ async def validation_exception_handler(
     Returns:
         JSONResponse: Formatted error response
     """
-    logger.warning(f"Validation error on {request.url.path}: {exc.errors()}")
+    # Convert errors to JSON-serializable format
+    # Remove 'ctx' field which may contain non-serializable objects like ValueError
+    serializable_errors = []
+    for error in exc.errors():
+        clean_error = {
+            "loc": error.get("loc"),
+            "msg": error.get("msg"),
+            "type": error.get("type"),
+        }
+        # Include input if it's serializable
+        if "input" in error:
+            try:
+                import json
+
+                json.dumps(error["input"])
+                clean_error["input"] = error["input"]
+            except (TypeError, ValueError):
+                pass
+        serializable_errors.append(clean_error)
+
+    logger.warning(f"Validation error on {request.url.path}: {serializable_errors}")
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
-            "detail": exc.errors(),
-            "body": exc.body,
+            "detail": serializable_errors,
             "message": "Request validation failed. Please check your input.",
         },
     )

@@ -4,16 +4,16 @@ Unit tests for rate limit service.
 Tests rate limiting functionality for token requests.
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import rate_limit_service, token_service
-from app.models.user import User
-from app.models.token import Token
 from app.core.config import get_settings
-
+from app.models.token import Token
+from app.models.user import User
+from app.services import rate_limit_service, token_service
 
 settings = get_settings()
 
@@ -22,10 +22,7 @@ class TestCheckRateLimit:
     """Tests for rate limit checking by user ID."""
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_first_request(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_first_request(self, db_session: AsyncSession):
         """Test rate limit check for user's first request."""
         # Create test user
         user = User(email="test@example.com")
@@ -35,8 +32,7 @@ class TestCheckRateLimit:
 
         # Check rate limit (first request)
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should be allowed
@@ -45,10 +41,7 @@ class TestCheckRateLimit:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_within_limit(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_within_limit(self, db_session: AsyncSession):
         """Test rate limit check when within allowed requests."""
         # Create test user
         user = User(email="test@example.com")
@@ -59,16 +52,11 @@ class TestCheckRateLimit:
         # Create some tokens (less than limit)
         num_requests = settings.rate_limit_requests - 1
         for i in range(num_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should be allowed
@@ -77,10 +65,7 @@ class TestCheckRateLimit:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_at_limit(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_at_limit(self, db_session: AsyncSession):
         """Test rate limit check when at the exact limit."""
         # Create test user
         user = User(email="test@example.com")
@@ -90,16 +75,11 @@ class TestCheckRateLimit:
 
         # Create tokens up to limit
         for i in range(settings.rate_limit_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should NOT be allowed
@@ -108,10 +88,7 @@ class TestCheckRateLimit:
         assert retry_after > 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_exceeded(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_exceeded(self, db_session: AsyncSession):
         """Test rate limit check when limit is exceeded."""
         # Create test user
         user = User(email="test@example.com")
@@ -121,16 +98,11 @@ class TestCheckRateLimit:
 
         # Create tokens exceeding limit
         for i in range(settings.rate_limit_requests + 2):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should NOT be allowed
@@ -139,10 +111,7 @@ class TestCheckRateLimit:
         assert retry_after > 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_retry_after_calculation(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_retry_after_calculation(self, db_session: AsyncSession):
         """Test that retry_after is calculated correctly."""
         # Create test user
         user = User(email="test@example.com")
@@ -152,16 +121,11 @@ class TestCheckRateLimit:
 
         # Create tokens at limit
         for i in range(settings.rate_limit_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Verify retry_after is reasonable
@@ -169,10 +133,7 @@ class TestCheckRateLimit:
         assert retry_after <= settings.rate_limit_window_minutes * 60
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_window_expiry(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_window_expiry(self, db_session: AsyncSession):
         """Test rate limit resets after window expires."""
         # Create test user
         user = User(email="test@example.com")
@@ -190,7 +151,7 @@ class TestCheckRateLimit:
                 user_id=user.id,
                 token_hash=token_hash,
                 expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
-                created_at=window_start
+                created_at=window_start,
             )
             db_session.add(db_token)
 
@@ -198,8 +159,7 @@ class TestCheckRateLimit:
 
         # Check rate limit (old tokens should not count)
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should be allowed (window reset)
@@ -208,10 +168,7 @@ class TestCheckRateLimit:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_partial_window(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_partial_window(self, db_session: AsyncSession):
         """Test rate limit with tokens both inside and outside window."""
         # Create test user
         user = User(email="test@example.com")
@@ -229,22 +186,17 @@ class TestCheckRateLimit:
                 user_id=user.id,
                 token_hash=token_hash,
                 expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
-                created_at=old_time
+                created_at=old_time,
             )
             db_session.add(db_token)
 
         # Create recent tokens (inside window)
         for i in range(2):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"new{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"new{i}")
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should only count recent tokens
@@ -253,11 +205,9 @@ class TestCheckRateLimit:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    @patch('app.services.rate_limit_service.logger')
+    @patch("app.services.rate_limit_service.logger")
     async def test_check_rate_limit_logs_warning_when_exceeded(
-        self,
-        mock_logger: MagicMock,
-        db_session: AsyncSession
+        self, mock_logger: MagicMock, db_session: AsyncSession
     ):
         """Test that rate limit logs warning when exceeded."""
         # Create test user
@@ -268,11 +218,7 @@ class TestCheckRateLimit:
 
         # Create tokens exceeding limit
         for i in range(settings.rate_limit_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit
         await rate_limit_service.check_rate_limit(db_session, str(user.id))
@@ -283,11 +229,9 @@ class TestCheckRateLimit:
         assert "Rate limit exceeded" in warning_call[0][0]
 
     @pytest.mark.asyncio
-    @patch('app.services.rate_limit_service.logger')
+    @patch("app.services.rate_limit_service.logger")
     async def test_check_rate_limit_logs_info_when_allowed(
-        self,
-        mock_logger: MagicMock,
-        db_session: AsyncSession
+        self, mock_logger: MagicMock, db_session: AsyncSession
     ):
         """Test that rate limit logs info when request is allowed."""
         # Create test user
@@ -309,17 +253,13 @@ class TestCheckRateLimitByEmail:
     """Tests for rate limit checking by email address."""
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_by_email_new_user(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_by_email_new_user(self, db_session: AsyncSession):
         """Test rate limit check for new user (doesn't exist yet)."""
         email = "newuser@example.com"
 
         # Check rate limit for non-existent user
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit_by_email(
-            db_session,
-            email
+            db_session, email
         )
 
         # Should be allowed (first time)
@@ -328,10 +268,7 @@ class TestCheckRateLimitByEmail:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_by_email_existing_user(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_by_email_existing_user(self, db_session: AsyncSession):
         """Test rate limit check for existing user."""
         # Create test user with tokens
         user = User(email="existing@example.com")
@@ -341,16 +278,11 @@ class TestCheckRateLimitByEmail:
 
         # Create some tokens
         for i in range(2):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit by email
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit_by_email(
-            db_session,
-            "existing@example.com"
+            db_session, "existing@example.com"
         )
 
         # Should be allowed with correct remaining count
@@ -359,10 +291,7 @@ class TestCheckRateLimitByEmail:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_by_email_at_limit(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_by_email_at_limit(self, db_session: AsyncSession):
         """Test rate limit by email when user is at limit."""
         # Create test user with tokens at limit
         user = User(email="limited@example.com")
@@ -372,16 +301,11 @@ class TestCheckRateLimitByEmail:
 
         # Create tokens up to limit
         for i in range(settings.rate_limit_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit by email
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit_by_email(
-            db_session,
-            "limited@example.com"
+            db_session, "limited@example.com"
         )
 
         # Should NOT be allowed
@@ -390,10 +314,7 @@ class TestCheckRateLimitByEmail:
         assert retry_after > 0
 
     @pytest.mark.asyncio
-    async def test_check_rate_limit_by_email_case_sensitivity(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_check_rate_limit_by_email_case_sensitivity(self, db_session: AsyncSession):
         """Test rate limit by email handles case sensitivity correctly."""
         # Create user with lowercase email
         user = User(email="test@example.com")
@@ -403,16 +324,11 @@ class TestCheckRateLimitByEmail:
 
         # Create tokens
         for i in range(2):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check with exact email
         allowed, remaining, _ = await rate_limit_service.check_rate_limit_by_email(
-            db_session,
-            "test@example.com"
+            db_session, "test@example.com"
         )
 
         # Should find user and count tokens
@@ -424,10 +340,7 @@ class TestGetRateLimitInfo:
     """Tests for rate limit information retrieval."""
 
     @pytest.mark.asyncio
-    async def test_get_rate_limit_info_no_requests(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_get_rate_limit_info_no_requests(self, db_session: AsyncSession):
         """Test getting rate limit info for user with no requests."""
         # Create test user
         user = User(email="test@example.com")
@@ -436,10 +349,7 @@ class TestGetRateLimitInfo:
         await db_session.refresh(user)
 
         # Get rate limit info
-        info = await rate_limit_service.get_rate_limit_info(
-            db_session,
-            str(user.id)
-        )
+        info = await rate_limit_service.get_rate_limit_info(db_session, str(user.id))
 
         # Verify info structure
         assert info["limit"] == settings.rate_limit_requests
@@ -449,10 +359,7 @@ class TestGetRateLimitInfo:
         assert info["is_limited"] is False
 
     @pytest.mark.asyncio
-    async def test_get_rate_limit_info_with_requests(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_get_rate_limit_info_with_requests(self, db_session: AsyncSession):
         """Test getting rate limit info for user with requests."""
         # Create test user
         user = User(email="test@example.com")
@@ -463,27 +370,17 @@ class TestGetRateLimitInfo:
         # Create some tokens
         num_tokens = 2
         for i in range(num_tokens):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Get rate limit info
-        info = await rate_limit_service.get_rate_limit_info(
-            db_session,
-            str(user.id)
-        )
+        info = await rate_limit_service.get_rate_limit_info(db_session, str(user.id))
 
         # Verify current count
         assert info["current_count"] == num_tokens
         assert info["is_limited"] is False
 
     @pytest.mark.asyncio
-    async def test_get_rate_limit_info_at_limit(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_get_rate_limit_info_at_limit(self, db_session: AsyncSession):
         """Test getting rate limit info when user is at limit."""
         # Create test user
         user = User(email="test@example.com")
@@ -493,27 +390,17 @@ class TestGetRateLimitInfo:
 
         # Create tokens up to limit
         for i in range(settings.rate_limit_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Get rate limit info
-        info = await rate_limit_service.get_rate_limit_info(
-            db_session,
-            str(user.id)
-        )
+        info = await rate_limit_service.get_rate_limit_info(db_session, str(user.id))
 
         # Should show limited
         assert info["current_count"] == settings.rate_limit_requests
         assert info["is_limited"] is True
 
     @pytest.mark.asyncio
-    async def test_get_rate_limit_info_window_start_format(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_get_rate_limit_info_window_start_format(self, db_session: AsyncSession):
         """Test that window_start is properly formatted as ISO string."""
         # Create test user
         user = User(email="test@example.com")
@@ -522,10 +409,7 @@ class TestGetRateLimitInfo:
         await db_session.refresh(user)
 
         # Get rate limit info
-        info = await rate_limit_service.get_rate_limit_info(
-            db_session,
-            str(user.id)
-        )
+        info = await rate_limit_service.get_rate_limit_info(db_session, str(user.id))
 
         # Verify window_start is ISO format string
         window_start = info["window_start"]
@@ -534,10 +418,7 @@ class TestGetRateLimitInfo:
         datetime.fromisoformat(window_start)
 
     @pytest.mark.asyncio
-    async def test_get_rate_limit_info_only_counts_window(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_get_rate_limit_info_only_counts_window(self, db_session: AsyncSession):
         """Test that rate limit info only counts tokens within window."""
         # Create test user
         user = User(email="test@example.com")
@@ -555,23 +436,16 @@ class TestGetRateLimitInfo:
                 user_id=user.id,
                 token_hash=token_hash,
                 expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
-                created_at=old_time
+                created_at=old_time,
             )
             db_session.add(db_token)
 
         # Create recent tokens (inside window)
         for i in range(2):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"new{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"new{i}")
 
         # Get rate limit info
-        info = await rate_limit_service.get_rate_limit_info(
-            db_session,
-            str(user.id)
-        )
+        info = await rate_limit_service.get_rate_limit_info(db_session, str(user.id))
 
         # Should only count recent tokens
         assert info["current_count"] == 2
@@ -581,10 +455,7 @@ class TestRateLimitEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
     @pytest.mark.asyncio
-    async def test_rate_limit_with_zero_tokens(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_rate_limit_with_zero_tokens(self, db_session: AsyncSession):
         """Test rate limit check with user who has no tokens."""
         # Create test user (no tokens)
         user = User(email="test@example.com")
@@ -594,8 +465,7 @@ class TestRateLimitEdgeCases:
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Should be allowed with full quota
@@ -604,10 +474,7 @@ class TestRateLimitEdgeCases:
         assert retry_after == 0
 
     @pytest.mark.asyncio
-    async def test_rate_limit_concurrent_requests_simulation(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_rate_limit_concurrent_requests_simulation(self, db_session: AsyncSession):
         """Test rate limit with rapid successive checks."""
         # Create test user
         user = User(email="test@example.com")
@@ -619,15 +486,10 @@ class TestRateLimitEdgeCases:
         results = []
         for i in range(settings.rate_limit_requests + 1):
             # Create token
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"token{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"token{i}")
             # Check rate limit
             allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-                db_session,
-                str(user.id)
+                db_session, str(user.id)
             )
             results.append((allowed, remaining, retry_after))
 
@@ -638,10 +500,7 @@ class TestRateLimitEdgeCases:
         assert last_retry > 0
 
     @pytest.mark.asyncio
-    async def test_rate_limit_minimum_retry_after(
-        self,
-        db_session: AsyncSession
-    ):
+    async def test_rate_limit_minimum_retry_after(self, db_session: AsyncSession):
         """Test that retry_after is at least 1 second."""
         # Create test user
         user = User(email="test@example.com")
@@ -651,16 +510,11 @@ class TestRateLimitEdgeCases:
 
         # Create tokens at limit
         for i in range(settings.rate_limit_requests):
-            await token_service.create_token_for_user(
-                db_session,
-                str(user.id),
-                f"12345{i}"
-            )
+            await token_service.create_token_for_user(db_session, str(user.id), f"12345{i}")
 
         # Check rate limit
         allowed, remaining, retry_after = await rate_limit_service.check_rate_limit(
-            db_session,
-            str(user.id)
+            db_session, str(user.id)
         )
 
         # Verify retry_after is at least 1

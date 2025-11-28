@@ -5,15 +5,16 @@ This module provides shared fixtures for testing the FastAPI application.
 """
 
 from typing import AsyncGenerator
+
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.main import app
-from app.core.database import Base, get_db
 from app.core.config import get_settings
+from app.core.database import Base, get_db
+from app.main import app
 
 # Test database URL
 # In CI/testing environments with DATABASE_URL set, use it directly (CI provides a test database)
@@ -25,8 +26,7 @@ if settings.database_url_override:
 else:
     # Development: use separate _test database
     TEST_DATABASE_URL = settings.database_url.replace(
-        settings.postgres_db,
-        f"{settings.postgres_db}_test"
+        settings.postgres_db, f"{settings.postgres_db}_test"
     )
 
 # Create test engine with NullPool to avoid connection state issues
@@ -138,10 +138,7 @@ async def sample_user(db_session: AsyncSession):
     """
     from app.models.user import User
 
-    user = User(
-        email="test@example.com",
-        is_active=True
-    )
+    user = User(email="test@example.com", is_active=True)
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
