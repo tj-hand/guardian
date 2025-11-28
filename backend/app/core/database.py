@@ -12,17 +12,24 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 # Database connection settings from environment variables
-POSTGRES_USER = os.getenv("POSTGRES_USER", "authuser")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "authpass123")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "database")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "auth_db")
+# Check for DATABASE_URL first (used in CI), then fall back to individual components
+_database_url_env = os.getenv("DATABASE_URL")
 
-# Construct async PostgreSQL connection URL
-DATABASE_URL = (
-    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-    f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-)
+if _database_url_env:
+    # Use DATABASE_URL directly if provided (e.g., in CI)
+    DATABASE_URL = _database_url_env
+else:
+    # Construct from individual components (development/production)
+    POSTGRES_USER = os.getenv("POSTGRES_USER", "authuser")
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "authpass123")
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "database")
+    POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_DB = os.getenv("POSTGRES_DB", "auth_db")
+
+    DATABASE_URL = (
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    )
 
 # Create async engine with connection pooling
 # For production, adjust pool settings based on expected concurrent connections
