@@ -49,7 +49,7 @@ test.describe('Authentication Flow', () => {
 
   test('should allow user to request token and login successfully', async ({ page }) => {
     // Intercept API call to request token
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -61,7 +61,7 @@ test.describe('Authentication Flow', () => {
     })
 
     // Intercept API call to validate token
-    await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -101,7 +101,7 @@ test.describe('Authentication Flow', () => {
 
   test('should show error for invalid token', async ({ page }) => {
     // Intercept API call to request token
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -113,7 +113,7 @@ test.describe('Authentication Flow', () => {
     })
 
     // Intercept API call to validate token with error
-    await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -139,7 +139,7 @@ test.describe('Authentication Flow', () => {
 
   test('should show error for expired token', async ({ page }) => {
     // Intercept API call to request token
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -151,7 +151,7 @@ test.describe('Authentication Flow', () => {
     })
 
     // Intercept API call to validate token with expiry error
-    await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -179,7 +179,7 @@ test.describe('Authentication Flow', () => {
     let validateTokenCalled = false
 
     // Intercept API call to request token
-    await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -191,7 +191,7 @@ test.describe('Authentication Flow', () => {
     })
 
     // Intercept API call to validate token
-    await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+    await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
       validateTokenCalled = true
       await route.fulfill({
         status: 200,

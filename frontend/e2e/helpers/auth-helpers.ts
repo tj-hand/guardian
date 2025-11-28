@@ -38,7 +38,7 @@ export async function setAuthenticatedSession(
 
   await context.addInitScript(
     ({ token, user }) => {
-      localStorage.setItem('token', token)
+      localStorage.setItem('access_token', token)
       localStorage.setItem('user', JSON.stringify(user))
     },
     { token, user: defaultUser }
@@ -49,7 +49,7 @@ export async function setAuthenticatedSession(
  * Mock successful token request
  */
 export async function mockTokenRequest(page: Page, email: string) {
-  await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+  await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -69,7 +69,7 @@ export async function mockTokenValidation(
   email: string,
   token: string = 'mock-jwt-token'
 ) {
-  await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+  await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -95,7 +95,7 @@ export async function mockTokenValidationError(
   errorMessage: string = 'Invalid or expired token',
   statusCode: number = 401
 ) {
-  await page.route(`${API_BASE_URL}/api/v1/auth/validate-token`, async (route) => {
+  await page.route(`${API_BASE_URL}/api/auth/validate-token`, async (route) => {
     await route.fulfill({
       status: statusCode,
       contentType: 'application/json',
@@ -121,7 +121,7 @@ export async function mockAuthenticatedUser(
     ...user
   }
 
-  await page.route(`${API_BASE_URL}/api/v1/auth/me`, async (route) => {
+  await page.route(`${API_BASE_URL}/api/auth/me`, async (route) => {
     const headers = route.request().headers()
     if (headers['authorization'] === `Bearer ${token}`) {
       await route.fulfill({
@@ -143,7 +143,7 @@ export async function mockAuthenticatedUser(
  * Mock rate limit error
  */
 export async function mockRateLimitError(page: Page) {
-  await page.route(`${API_BASE_URL}/api/v1/auth/request-token`, async (route) => {
+  await page.route(`${API_BASE_URL}/api/auth/request-token`, async (route) => {
     await route.fulfill({
       status: 429,
       contentType: 'application/json',
@@ -187,7 +187,7 @@ export async function loginWithMockedAPI(
  */
 export async function clearAuth(page: Page) {
   await page.evaluate(() => {
-    localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
     localStorage.removeItem('user')
   })
 }
@@ -196,7 +196,7 @@ export async function clearAuth(page: Page) {
  * Get authentication token from browser
  */
 export async function getAuthToken(page: Page): Promise<string | null> {
-  return await page.evaluate(() => localStorage.getItem('token'))
+  return await page.evaluate(() => localStorage.getItem('access_token'))
 }
 
 /**
