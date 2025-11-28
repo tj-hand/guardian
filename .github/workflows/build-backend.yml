@@ -6,13 +6,11 @@ on:
       - main
     paths:
       - 'backend/**'
-      - '!backend/**/*.md'
   pull_request:
     branches:
       - main
     paths:
       - 'backend/**'
-      - '!backend/**/*.md'
   workflow_dispatch:
 
 env:
