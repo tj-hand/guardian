@@ -4,8 +4,7 @@ Pytest configuration and fixtures.
 This module provides shared fixtures for testing the FastAPI application.
 """
 
-import asyncio
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -49,21 +48,7 @@ TestSessionLocal = async_sessionmaker(
     autocommit=False,
 )
 
-
-@pytest.fixture(scope="function")
-def event_loop() -> Generator:
-    """
-    Create event loop for async tests.
-
-    Using function scope to ensure each test gets a fresh event loop,
-    preventing asyncpg connection state issues across tests.
-
-    Yields:
-        asyncio.AbstractEventLoop: Event loop for test function
-    """
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Note: event_loop fixture removed - pytest-asyncio with asyncio_mode=auto handles this automatically
 
 
 @pytest_asyncio.fixture(scope="function", loop_scope="function")
@@ -116,12 +101,13 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     # Override dependency
     app.dependency_overrides[get_db] = override_get_db
 
-    # Create client
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
-
-    # Clear overrides
-    app.dependency_overrides.clear()
+    try:
+        # Create client
+        async with AsyncClient(app=app, base_url="http://test") as ac:
+            yield ac
+    finally:
+        # Always clear overrides, even if test fails
+        app.dependency_overrides.clear()
 
 
 @pytest.fixture
